@@ -1,0 +1,35 @@
+# Example deployment of the Compose Dashboard.
+#
+#   docker compose up -d --build
+#
+# Mount the directory that holds your other compose projects into /compose
+# (read-only). The dashboard scans it recursively and builds the cards.
+services:
+  dashboard:
+    build: .
+    image: compose-dashboard:latest
+    container_name: compose-dashboard
+    ports:
+      - "1337:1337"
+    environment:
+      APP_HOST: localhost   # hostname your published service ports resolve to
+      CHECK_INTERVAL: "30"  # availability check interval (seconds)
+      PORT: "1337"
+      LOG_LEVEL: info
+    volumes:
+      # Your compose projects, read-only. Point this at wherever they live.
+      - ./examples:/compose:ro
+    # Writable icon cache on tmpfs (mode 1777 so the non-root user can write).
+    tmpfs:
+      - /icons:mode=1777
+    # Hardened runtime.
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:1337/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

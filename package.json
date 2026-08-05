@@ -1,0 +1,19 @@
+{
+  "name": "compose-dashboard",
+  "version": "1.0.0",
+  "description": "Self-hosted dashboard that auto-discovers services from Docker Compose files.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/src/index.js",
+    "dev": "node --watch server/src/index.js"
+  },
+  "dependencies": {
+    "chokidar": "^3.6.0",
+    "express": "^4.19.2",
+    "yaml": "^2.5.0"
+  }
+}

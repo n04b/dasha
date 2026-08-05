@@ -1,0 +1,67 @@
+// Periodic availability checks. Each service with a URL is probed with an
+// HTTP GET; the result maps to Online / Offline / Timeout.
+import { config } from './config.js';
+import { createLogger } from './logger.js';
+import { store } from './state.js';
+
+const log = createLogger('health');
+
+let timer = null;
+
+export function startHealthChecks() {
+  const intervalMs = Math.max(1, config.checkInterval) * 1000;
+  // Kick off an immediate pass, then repeat on the configured interval.
+  runPass();
+  timer = setInterval(runPass, intervalMs);
+  timer.unref?.();
+  log.info(`health checks every ${config.checkInterval}s`);
+}
+
+export function stopHealthChecks() {
+  if (timer) clearInterval(timer);
+  timer = null;
+}
+
+async function runPass() {
+  const services = store.listServices().filter((s) => s.url);
+  await Promise.all(services.map(checkService));
+}
+
+async function checkService(svc) {
+  const started = Date.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.healthTimeout);
+
+  let patch;
+  try {
+    const res = await fetch(svc.url, {
+      method: 'GET',
+      redirect: 'manual',
+      signal: controller.signal,
+      headers: { 'user-agent': 'compose-dashboard/health' },
+    });
+    patch = {
+      status: 'online',
+      statusCode: res.status,
+      responseTime: Date.now() - started,
+      lastCheck: new Date().toISOString(),
+    };
+  } catch (err) {
+    const timedOut = err.name === 'AbortError';
+    patch = {
+      status: timedOut ? 'timeout' : 'offline',
+      statusCode: null,
+      responseTime: Date.now() - started,
+      lastCheck: new Date().toISOString(),
+    };
+    log.debug(`${svc.name} ${patch.status} (${svc.url})`, err.message);
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  const prev = svc.status;
+  store.updateHealth(svc.id, patch);
+  if (prev !== patch.status) {
+    log.info(`${svc.name}: ${prev} -> ${patch.status} (${svc.url})`);
+  }
+}

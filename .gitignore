@@ -1,0 +1,7 @@
+node_modules/
+web/node_modules/
+web/dist/
+icons/
+*.log
+.DS_Store
+.env

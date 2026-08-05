@@ -1,0 +1,10 @@
+node_modules
+web/node_modules
+web/dist
+npm-debug.log*
+.git
+.gitignore
+.DS_Store
+*.md
+examples
+scratchpad

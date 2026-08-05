@@ -1,0 +1,28 @@
+# Example project: a couple of well-known services with published ports.
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: web-proxy
+    ports:
+      - "8080:80"
+    networks:
+      - frontend
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    # Explicit dashboard overrides via compose extensions.
+    x-dashboard-name: "Grafana Metrics"
+    x-dashboard-icon: "simple-icons:grafana"
+    x-dashboard-port: 3000
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - frontend
+      - monitoring
+
+networks:
+  frontend:
+  monitoring:
