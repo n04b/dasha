@@ -9,6 +9,14 @@ each service, resolves an icon (cached locally from [Iconify](https://iconify.de
 builds a URL, and continuously checks whether the service is reachable. It rebuilds
 itself whenever the compose files change.
 
+## Why another dashboard?
+
+I used [Heimdall](https://github.com/linuxserver/Heimdall) and
+[Homer](https://github.com/bastienwirtz/homer) for a while, but both expect you
+to curate the list of services by hand — adding, editing and re-ordering entries
+as your stack changes. I wanted the dashboard to be derived automatically from the
+compose files I already maintain, with zero manual bookkeeping, so I (well, actually Claude) wrote my own.
+
 ## Features
 
 -  **Automatic scanning** — recursively finds `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, `compose.yaml`.
