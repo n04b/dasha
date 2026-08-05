@@ -4,7 +4,7 @@ import { config } from './config.js';
 
 /**
  * Resolve the display name.
- * Priority: x-dashboard-name -> service name.
+ * Priority: x-dasha-name -> service name.
  */
 export function resolveName(service) {
   return service.ext.name || service.name;
@@ -12,7 +12,7 @@ export function resolveName(service) {
 
 /**
  * Resolve the URL used for the card link and availability checks.
- * Priority: x-dashboard-port -> first published (host) port.
+ * Priority: x-dasha-port -> first published (host) port.
  * Both are exposed on APP_HOST.
  */
 export function resolveUrl(service) {
@@ -29,8 +29,8 @@ function firstPublishedPort(service) {
 
 /**
  * Ordered list of icon search candidates.
- * Priority: x-dashboard-icon -> service name -> image -> container name.
- * An x-dashboard-icon that already looks like an Iconify id (prefix:name)
+ * Priority: x-dasha-icon -> service name -> image -> container name.
+ * An x-dasha-icon that already looks like an Iconify id (prefix:name)
  * is returned as an explicit id so it is fetched verbatim.
  */
 export function iconCandidates(service) {

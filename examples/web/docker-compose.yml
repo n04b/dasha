@@ -12,9 +12,9 @@ services:
     image: grafana/grafana:latest
     container_name: grafana
     # Explicit dashboard overrides via compose extensions.
-    x-dashboard-name: "Grafana Metrics"
-    x-dashboard-icon: "simple-icons:grafana"
-    x-dashboard-port: 3000
+    x-dasha-name: "Grafana Metrics"
+    x-dasha-icon: "simple-icons:grafana"
+    x-dasha-port: 3000
     ports:
       - "3000:3000"
     environment:

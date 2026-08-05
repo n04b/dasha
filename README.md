@@ -1,4 +1,4 @@
-# Compose Dashboard
+# Dasha Dashboard
 
 A self-hosted dashboard that **automatically discovers services from your Docker
 Compose files** and renders them as a clean, responsive grid of cards — no manual
@@ -26,16 +26,16 @@ itself whenever the compose files change.
 docker compose up -d --build
 ```
 
-Then open <http://localhost:1337>. The bundled [`docker-compose.yml`](docker-compose.yml)
+Then open <http://localhost>. The bundled [`docker-compose.yml`](docker-compose.yml)
 mounts the [`examples/`](examples) folder so you see cards immediately. Point the
 `/compose` mount at your own projects instead:
 
 ```yaml
 services:
-  dashboard:
-    image: compose-dashboard:latest
+  dasha:
+    image: dasha:latest
     ports:
-      - "1337:1337"
+      - "80:1337"   # host port 80 -> app listens on 1337 inside the container
     environment:
       APP_HOST: server.local   # host your published ports are reachable on
       CHECK_INTERVAL: "30"
@@ -55,17 +55,17 @@ For every service the following fields are extracted:
 `name`, `image`, `container_name`, `labels`, `environment`, `ports`, `networks`.
 
 **Card name** — priority:
-1. `x-dashboard-name` (service-level compose extension)
+1. `x-dasha-name` (service-level compose extension)
 2. service name
 
 **Card URL** — priority:
-1. `x-dashboard-port`
+1. `x-dasha-port`
 2. first published (host) port
 
 The port is combined with `APP_HOST`, e.g. `http://server.local:3000`.
 
 **Icon** — priority (all cached locally under `/icons`):
-1. `x-dashboard-icon` (a word to search, or an explicit Iconify id like `simple-icons:grafana`)
+1. `x-dasha-icon` (a word to search, or an explicit Iconify id like `simple-icons:grafana`)
 2. service name
 3. image name
 4. container name
@@ -76,9 +76,9 @@ The port is combined with `APP_HOST`, e.g. `http://server.local:3000`.
 services:
   grafana:
     image: grafana/grafana:latest
-    x-dashboard-name: "Grafana Metrics"
-    x-dashboard-icon: "simple-icons:grafana"
-    x-dashboard-port: 3000
+    x-dasha-name: "Grafana Metrics"
+    x-dasha-icon: "simple-icons:grafana"
+    x-dasha-port: 3000
     ports:
       - "3000:3000"
 ```
@@ -115,34 +115,6 @@ COMPOSE_DIR=./examples ICONS_DIR=./.icons node server/src/index.js   # API on :1
 
 cd web && npm install && npm run dev                                 # UI on :5173
 ```
-
-## Architecture
-
-```
-server/src/
-  index.js     entry point, lifecycle, graceful shutdown
-  config.js    env-driven configuration
-  scanner.js   recursive compose-file discovery
-  parser.js    YAML -> normalized service descriptors
-  resolver.js  name / URL / icon-candidate resolution
-  icons.js     Iconify lookup + local SVG cache
-  builder.js   scan -> parse -> resolve -> publish to store
-  health.js    periodic availability checks
-  watcher.js   chokidar file watching + debounced rebuild
-  state.js     in-memory store (no external database)
-  api.js       REST API + static asset serving
-web/           React (Vite) frontend
-```
-
-State is held **in memory** — there is no external database. The icon cache is the
-only thing written to disk, so the container runs happily with a read-only root
-filesystem when `/icons` is a volume or tmpfs.
-
-## Possible enhancements
-
-Multiple compose directories · user-supplied custom icons · Traefik/Caddy/NPM
-label integration · real container state via the Docker API · extra per-service
-metrics.
 
 ## License
 

@@ -5,12 +5,12 @@
 # Mount the directory that holds your other compose projects into /compose
 # (read-only). The dashboard scans it recursively and builds the cards.
 services:
-  dashboard:
+  dasha:
     build: .
-    image: compose-dashboard:latest
-    container_name: compose-dashboard
+    image: dasha:latest
+    container_name: dasha
     ports:
-      - "1337:1337"
+      - "80:1337"   # published on host port 80 -> app listens on 1337 inside
     environment:
       APP_HOST: localhost   # hostname your published service ports resolve to
       CHECK_INTERVAL: "30"  # availability check interval (seconds)

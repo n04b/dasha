@@ -56,11 +56,11 @@ function normalizeService(name, def, fileId, filePath) {
     environment: normalizeEnv(def.environment),
     ports: normalizePorts(def.ports),
     networks: normalizeNetworks(def.networks),
-    // Dashboard extensions (x-dashboard-* keys on the service).
+    // Dashboard extensions (x-dasha-* keys on the service).
     ext: {
-      name: def['x-dashboard-name'] ?? null,
-      icon: def['x-dashboard-icon'] ?? null,
-      port: def['x-dashboard-port'] ?? null,
+      name: def['x-dasha-name'] ?? null,
+      icon: def['x-dasha-icon'] ?? null,
+      port: def['x-dasha-port'] ?? null,
     },
   };
 }
