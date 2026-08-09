@@ -32,3 +32,32 @@
       Fixed: health checks now probe `CHECK_HOST` (e.g. `host.docker.internal`)
       separately from the `APP_HOST` used for card links, so probes reach the
       host where ports are published instead of the container's own loopback.
+- [ ] `/api/services` and `/api/compose/:id` leak secrets — the full
+      `environment` map and raw file contents are exposed to anyone who can
+      reach the dashboard. Filter / mask sensitive values.
+- [ ] `/api/reload` can hang forever — Express 4 doesn't catch rejected
+      promises in async handlers. Add a catch so the request always resolves.
+- [ ] Stale health status — a service that loses its `checkUrl` keeps showing
+      `online` forever because `replaceAll` copies the old status across. Reset
+      to `no-url` when there's nothing to probe.
+- [ ] Health-check passes can overlap — if one pass runs longer than
+      `checkInterval` the next one starts anyway, doubling probe load. Add a
+      re-entrancy guard.
+- [ ] HTTP 404/500 are reported as `online` — the checker only distinguishes
+      thrown errors vs. timeouts, ignoring the status code.
+- [ ] Icon resolution is sequential and unbounded in time — 2 network calls per
+      service × up to `healthTimeout` each; a down Iconify API grinds every
+      rebuild. Add concurrency limits / timeouts / fallback short-circuit.
+- [ ] Long-syntax port ranges (`published: "8000-8001"`) yield `NaN` in the
+      parser; short syntax handles ranges but long doesn't.
+- [ ] Web: dead error path in `ComposeModal` — `getJson` throws before an error
+      body is set, so `file.error` is never truthy and errors render as file
+      content with the misleading path `"error"`.
+- [ ] Web: no timeout/abort on `fetch` — a hanging `/api/services` leaves the
+      UI on "Loading…" forever and out-of-order responses can clobber newer
+      data.
+- [ ] Web: modal lacks `role="dialog"`, `aria-modal`, accessible name, focus
+      trap, and focus restore on close.
+- [ ] `parseComposeFile`/`todos` could false-positive on `#` inside a value
+      without leading whitespace (a `#` in the middle of a line isn't a YAML
+      comment start).
