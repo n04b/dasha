@@ -6,8 +6,8 @@
         TODO entry.
 - [x] **Publish to Docker Hub** — set up a multi-arch (amd64 + arm64) build and
       push `dasha:latest` + version tags, ideally automated via CI on git tags.
-  - [ ] Write the Docker Hub repository description / overview (it is not synced
-        automatically from the README).
+  - [x] Write the Docker Hub repository description / overview (it is not synced
+        automatically from the README). See `DOCKERHUB.md`.
 - [ ] **Set up GitHub Actions** — CI workflow to lint/build on every push and,
       on git tags, build the multi-arch image and push it to Docker Hub.
 - [ ] **Widget system** — pluggable per-card widgets that show extra live info
