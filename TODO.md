@@ -18,6 +18,15 @@
   - [ ] Standard widget types that pull their data from HTTP endpoints.
   - [ ] Configure widgets via an environment variable.
   - [ ] For a container-scoped widget, configure it via `x-dasha-widget`.
+- [ ] **Compose variable interpolation** — resolve `${VAR}` / `.env` substitutions
+      when parsing compose files, in particular when a port is defined via a
+      variable (e.g. `ports: - "${APP_PORT}:80"`), so URLs are built correctly.
 - [ ] **Apple Watch-like mosaic layout** — a unified mosaic for both app icons
       and widgets: every item shares the same round shape, and items can be freely
       arranged in any order (drag-to-reorder, persisted layout).
+- [ ] **Hide services without a URL** — don't render cards for services that have
+      no resolvable URL.
+
+## Bugs
+
+- [ ] Services are up and running but shown as **Offline** on the dashboard.
