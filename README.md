@@ -23,6 +23,7 @@ compose files I already maintain, with zero manual bookkeeping, so I (well, actu
 -  **Zero-config dashboard** — cards are built straight from the compose files.
 -  **Local icon cache** — SVGs pulled from Iconify and stored in `/icons`.
 -  **Availability checks** — periodic HTTP probes → `Online` / `Offline` / `Timeout`.
+-  **TODO/FIXME scanning** — counts `TODO` / `FIXME` comments in the compose files and shows them per service on the card.
 -  **Live reload** — file watcher rebuilds on create / change / delete.
 -  **Light & dark themes**, fully responsive.
 -  **REST API** for integration.
@@ -89,6 +90,27 @@ services:
     x-dasha-port: 3000
     ports:
       - "3000:3000"
+```
+
+## TODO / FIXME scanning
+
+Dasha scans the compose files themselves for `TODO` and `FIXME` comments and
+shows the count on each service card — click it to see every entry with its
+`file:line` location. A comment is attributed to the service whose block it sits
+in (including a comment written directly above the service key).
+
+- **Multi-line comments count as one entry** — a run of consecutive `#` comment
+  lines is collapsed into a single TODO.
+- The keyword must open the comment, so prose that merely mentions "TODO" is
+  ignored.
+
+```yaml
+services:
+  # TODO: pin the image to a specific version
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
 ```
 
 ## Configuration

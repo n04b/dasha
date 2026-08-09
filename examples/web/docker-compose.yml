@@ -3,6 +3,7 @@ services:
   nginx:
     image: nginx:alpine
     container_name: web-proxy
+    # TODO: serve a real config instead of the default page
     ports:
       - "8080:80"
     networks:
@@ -11,6 +12,9 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
+    # FIXME: the default admin password is committed here; this should be
+    #   read from a secret and rotated before any real deployment.
+
     # Explicit dashboard overrides via compose extensions.
     x-dasha-name: "Grafana Metrics"
     x-dasha-icon: "simple-icons:grafana"

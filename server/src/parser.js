@@ -26,30 +26,66 @@ export async function parseComposeFile(filePath) {
 
   let doc;
   try {
-    doc = YAML.parse(raw);
+    // parseDocument keeps node ranges, so we can map each service to its lines.
+    doc = YAML.parseDocument(raw);
   } catch (err) {
     log.error(`invalid YAML in ${filePath}`, err.message);
     return { id, path: filePath, raw, error: `yaml error: ${err.message}`, services: [] };
   }
+  if (doc.errors?.length) {
+    return { id, path: filePath, raw, error: `yaml error: ${doc.errors[0].message}`, services: [] };
+  }
 
-  const servicesRoot = doc?.services;
+  const js = doc.toJS() || {};
+  const servicesRoot = js.services;
   if (!servicesRoot || typeof servicesRoot !== 'object') {
     return { id, path: filePath, raw, error: 'no services block', services: [] };
   }
 
-  const services = Object.entries(servicesRoot).map(([name, def]) =>
-    normalizeService(name, def || {}, id, filePath),
-  );
+  const servicesNode = doc.get('services', true);
+  const services = Object.entries(servicesRoot).map(([name, def]) => {
+    const pair = servicesNode?.items?.find((p) => String(p.key) === name);
+    const range = serviceLineRange(pair, raw);
+    return normalizeService(name, def || {}, id, filePath, range);
+  });
 
   log.info(`parsed ${filePath}: ${services.length} service(s)`);
   return { id, path: filePath, raw, services };
 }
 
-function normalizeService(name, def, fileId, filePath) {
+// 1-based [start, end] line range a service occupies in the compose file,
+// extended upward over any immediately preceding `#` comment lines so a TODO
+// written just above the service key is attributed to it. Returns null if the
+// range can't be determined.
+function serviceLineRange(pair, raw) {
+  const startOff = pair?.key?.range?.[0];
+  const endOff = pair?.value?.range?.[1] ?? pair?.key?.range?.[2];
+  if (startOff == null || endOff == null) return null;
+
+  let start = lineNumberAt(raw, startOff);
+  const end = lineNumberAt(raw, endOff);
+
+  const lines = raw.split('\n');
+  for (let i = start - 2; i >= 0 && lines[i].trim().startsWith('#'); i -= 1) {
+    start = i + 1;
+  }
+  return { start, end };
+}
+
+function lineNumberAt(text, index) {
+  let count = 1;
+  for (let i = 0; i < index && i < text.length; i += 1) {
+    if (text.charCodeAt(i) === 10) count += 1;
+  }
+  return count;
+}
+
+function normalizeService(name, def, fileId, filePath, range) {
   return {
     fileId,
     filePath,
     name,
+    range,
     image: def.image ?? null,
     containerName: def.container_name ?? null,
     labels: normalizeLabels(def.labels),

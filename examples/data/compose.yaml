@@ -1,5 +1,6 @@
 # Example project using the newer compose.yaml name.
 services:
+  # TODO: pin the postgres minor version and add a named volume for the data
   postgres:
     image: postgres:16-alpine
     container_name: db

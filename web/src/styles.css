@@ -205,6 +205,51 @@ a.card-main { cursor: pointer; }
 }
 .link-btn:hover { text-decoration: underline; }
 
+.foot-actions { display: flex; align-items: center; gap: 8px; }
+.todo-badge {
+  background: color-mix(in srgb, var(--timeout) 16%, var(--bg-elev));
+  color: color-mix(in srgb, var(--timeout) 65%, var(--text));
+  border: 1px solid color-mix(in srgb, var(--timeout) 40%, var(--border));
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.todo-badge:hover { border-color: var(--timeout); }
+
+/* TODO list modal */
+.todo-list { list-style: none; margin: 0; padding: 8px; overflow: auto; }
+.todo-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.todo-item:last-child { border-bottom: none; }
+.todo-kw {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 2px 6px;
+  border-radius: 5px;
+  color: #fff;
+}
+.todo-kw.todo { background: var(--accent); }
+.todo-kw.fixme { background: var(--offline); }
+.todo-text { color: var(--text); word-break: break-word; }
+.todo-loc {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.todo-more { padding: 10px; color: var(--text-muted); font-size: 12px; text-align: center; }
+
 /* Empty / footer ---------------------------------------------------------- */
 .empty {
   text-align: center;

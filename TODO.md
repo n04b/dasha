@@ -1,10 +1,10 @@
 # TODO
 
-- [x] **Scan services for TODO comments** — parse source files referenced by a
-      service (or its build context) for `TODO` / `FIXME` comments and surface the
-      count on the service card.
-  - [x] Support multi-line TODO comments (block comments and consecutive
-        single-line comments) as a single TODO entry.
+- [x] **Scan services for TODO comments** — parse the compose files for
+      `TODO` / `FIXME` comments and surface the count per service on the card
+      (a comment is attributed to the service whose block it sits in).
+  - [x] Support multi-line TODO comments (consecutive comment lines) as a single
+        TODO entry.
 - [x] **Publish to Docker Hub** — set up a multi-arch (amd64 + arm64) build and
       push `dasha:latest` + version tags, ideally automated via CI on git tags.
   - [ ] Write the Docker Hub repository description / overview (it is not synced

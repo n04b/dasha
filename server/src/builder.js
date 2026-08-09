@@ -3,9 +3,11 @@
 import { config } from './config.js';
 import { createLogger } from './logger.js';
 import { findComposeFiles } from './scanner.js';
+import path from 'node:path';
 import { parseComposeFile } from './parser.js';
 import { resolveName, resolveUrl, iconCandidates } from './resolver.js';
 import { resolveIcon } from './icons.js';
+import { scanComposeText } from './todos.js';
 import { store } from './state.js';
 
 const log = createLogger('builder');
@@ -43,9 +45,20 @@ async function doRebuild() {
     files.push({ id: parsed.id, path: parsed.path, raw: parsed.raw, error: parsed.error || null });
     if (parsed.error) continue;
 
+    // Find TODO/FIXME comments in the compose file once, then attribute each to
+    // the service whose block contains it.
+    const fileTodos = scanComposeText(parsed.raw);
+    const relPath = path.relative(config.composeDir, parsed.path) || path.basename(parsed.path);
+
     for (const svc of parsed.services) {
       const url = resolveUrl(svc);
       const icon = await resolveIcon(iconCandidates(svc));
+      const todoItems = svc.range
+        ? fileTodos
+            .filter((t) => t.line >= svc.range.start && t.line <= svc.range.end)
+            .map((t) => ({ ...t, file: relPath }))
+        : [];
+      if (todoItems.length) log.info(`${svc.name}: ${todoItems.length} TODO(s) in ${relPath}`);
       services.push({
         id: `${svc.fileId}:${svc.name}`,
         fileId: svc.fileId,
@@ -60,6 +73,9 @@ async function doRebuild() {
         environment: svc.environment,
         ports: svc.ports,
         networks: svc.networks,
+        // TODO/FIXME comments found within this service's block in the compose file.
+        todos: todoItems.length,
+        todoItems: todoItems.slice(0, 50),
         // Health fields, filled in by the checker.
         status: url ? 'unknown' : 'no-url',
         statusCode: null,

@@ -23,6 +23,7 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [theme, setTheme] = useTheme();
   const [viewer, setViewer] = useState(null); // { id, path, content }
+  const [todoView, setTodoView] = useState(null); // service with todoItems
 
   const load = useCallback(async () => {
     try {
@@ -91,7 +92,7 @@ export default function App() {
         <div className="brand">
           <LogoMark />
           <div>
-            <h1>Compose Dashboard</h1>
+            <h1>Dasha Dashboard</h1>
             <p className="subtitle">
               {counts.total} service{counts.total === 1 ? '' : 's'} · {data.files.length} file
               {data.files.length === 1 ? '' : 's'}
@@ -142,7 +143,12 @@ export default function App() {
         ) : (
           <div className="grid">
             {services.map((s) => (
-              <ServiceCard key={s.id} service={s} onView={() => openCompose(s.fileId)} />
+              <ServiceCard
+                key={s.id}
+                service={s}
+                onView={() => openCompose(s.fileId)}
+                onTodos={() => setTodoView(s)}
+              />
             ))}
           </div>
         )}
@@ -153,11 +159,12 @@ export default function App() {
       </footer>
 
       {viewer && <ComposeModal file={viewer} onClose={() => setViewer(null)} />}
+      {todoView && <TodoModal service={todoView} onClose={() => setTodoView(null)} />}
     </div>
   );
 }
 
-function ServiceCard({ service, onView }) {
+function ServiceCard({ service, onView, onTodos }) {
   const meta = STATUS_META[service.status] || STATUS_META.unknown;
   const port = service.ports?.find((p) => p.published != null)?.published;
   const CardTag = service.url ? 'a' : 'div';
@@ -185,7 +192,18 @@ function ServiceCard({ service, onView }) {
           {port ? `:${port}` : 'no port'}
           {service.responseTime != null && service.status === 'online' ? ` · ${service.responseTime}ms` : ''}
         </span>
-        <button className="link-btn" onClick={onView}>compose</button>
+        <div className="foot-actions">
+          {service.todos > 0 && (
+            <button
+              className="todo-badge"
+              onClick={onTodos}
+              title={`${service.todos} TODO/FIXME comment${service.todos === 1 ? '' : 's'} in the build context`}
+            >
+              ✓ {service.todos} TODO{service.todos === 1 ? '' : 's'}
+            </button>
+          )}
+          <button className="link-btn" onClick={onView}>compose</button>
+        </div>
       </div>
     </div>
   );
@@ -207,6 +225,40 @@ function ComposeModal({ file, onClose }) {
         </div>
         {file.error && <div className="banner error">{file.error}</div>}
         <pre className="code"><code>{file.content}</code></pre>
+      </div>
+    </div>
+  );
+}
+
+function TodoModal({ service, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const items = service.todoItems || [];
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <span className="modal-path">
+            {service.name} — {service.todos} TODO / FIXME
+          </span>
+          <button className="btn" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <ul className="todo-list">
+          {items.map((t, i) => (
+            <li key={i} className="todo-item">
+              <span className={`todo-kw ${t.keyword.toLowerCase()}`}>{t.keyword}</span>
+              <span className="todo-text">{t.text || '(no description)'}</span>
+              <span className="todo-loc">{t.file}:{t.line}</span>
+            </li>
+          ))}
+          {service.todos > items.length && (
+            <li className="todo-more">…and {service.todos - items.length} more</li>
+          )}
+        </ul>
       </div>
     </div>
   );
