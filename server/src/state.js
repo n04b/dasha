@@ -8,10 +8,12 @@ class Store extends EventEmitter {
     this.files = new Map();
     /** @type {Map<string, object>} serviceId -> service descriptor */
     this.services = new Map();
+    /** @type {object[]} flat list of TODO/FIXME entries across all compose files */
+    this.todos = [];
     this.lastBuild = null;
   }
 
-  replaceAll(files, services) {
+  replaceAll(files, services, todos = []) {
     // Preserve previously observed health status across rebuilds so the UI
     // does not flash "unknown" every time a file changes.
     const previous = this.services;
@@ -28,6 +30,7 @@ class Store extends EventEmitter {
         return [s.id, s];
       }),
     );
+    this.todos = todos;
     this.lastBuild = new Date().toISOString();
     this.emit('change');
   }

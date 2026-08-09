@@ -33,6 +33,7 @@ export function createApp() {
     res.json({
       lastBuild: store.lastBuild,
       services: store.listServices(),
+      todos: store.todos,
       files: store.listFiles().map(({ id, path: p, error }) => ({ id, path: p, error })),
     });
   });
@@ -70,11 +71,22 @@ export function createApp() {
     express.static(config.iconsDir, { maxAge: '1h', fallthrough: true }),
   );
 
-  // Built React frontend.
-  app.use(express.static(WEB_DIST, { index: 'index.html', maxAge: '1h' }));
+  // Built React frontend. Asset filenames are content-hashed so they can be
+  // cached for a long time; index.html must not be cached, or an upgraded
+  // container would keep serving a page that references the old bundle.
+  app.use(
+    express.static(WEB_DIST, {
+      index: 'index.html',
+      maxAge: '1y',
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
+      },
+    }),
+  );
 
   // SPA fallback for non-API routes.
   app.get(/^\/(?!api\/|icons\/|healthz).*/, (_req, res) => {
+    res.set('Cache-Control', 'no-cache');
     res.sendFile(path.join(WEB_DIST, 'index.html'), (err) => {
       if (err) res.status(200).type('text/plain').send('compose-dashboard API is running');
     });

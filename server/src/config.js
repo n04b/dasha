@@ -8,8 +8,15 @@ function int(value, fallback) {
 }
 
 export const config = {
-  // Public hostname used to build service URLs (published ports are exposed here).
+  // Public hostname used to build the URLs shown on the cards (the host your
+  // browser reaches the published ports on).
   appHost: process.env.APP_HOST || 'localhost',
+
+  // Hostname the availability checker uses to reach services. Defaults to
+  // APP_HOST, but inside a container `localhost` is the container itself — set
+  // this to `host.docker.internal` (Docker Desktop) or the host's IP so probes
+  // hit the host where the ports are actually published.
+  checkHost: process.env.CHECK_HOST || process.env.APP_HOST || 'localhost',
 
   // Availability check interval, in seconds.
   checkInterval: int(process.env.CHECK_INTERVAL, 30),

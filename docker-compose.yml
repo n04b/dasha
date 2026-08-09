@@ -4,6 +4,9 @@
 #
 # Mount the directory that holds your other compose projects into /compose
 # (read-only). The dashboard scans it recursively and builds the cards.
+
+# TODO: test todo comments in compose files, and add a test for the dashboard itself.
+
 services:
   dasha:
     build: .
@@ -12,10 +15,17 @@ services:
     ports:
       - "80:1337"   # published on host port 80 -> app listens on 1337 inside
     environment:
-      APP_HOST: localhost   # hostname your published service ports resolve to
+      APP_HOST: localhost   # host your browser reaches the services on (card links)
+      # Host used to PROBE services. Inside a container `localhost` is the
+      # container itself, so probe the Docker host instead. `host.docker.internal`
+      # works on Docker Desktop and, via the extra_hosts entry below, on Linux.
+      CHECK_HOST: host.docker.internal
       CHECK_INTERVAL: "30"  # availability check interval (seconds)
       PORT: "1337"
       LOG_LEVEL: info
+    # Makes host.docker.internal resolve to the Docker host on Linux too.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       # Your compose projects, read-only. Point this at wherever they live.
       - ./examples:/compose:ro

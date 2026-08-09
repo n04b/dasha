@@ -23,7 +23,7 @@ compose files I already maintain, with zero manual bookkeeping, so I (well, actu
 -  **Zero-config dashboard** — cards are built straight from the compose files.
 -  **Local icon cache** — SVGs pulled from Iconify and stored in `/icons`.
 -  **Availability checks** — periodic HTTP probes → `Online` / `Offline` / `Timeout`.
--  **TODO/FIXME scanning** — counts `TODO` / `FIXME` comments in the compose files and shows them per service on the card.
+-  **TODO/FIXME scanning** — collects `TODO` / `FIXME` comments from the compose files into a dedicated block on the dashboard.
 -  **Live reload** — file watcher rebuilds on create / change / delete.
 -  **Light & dark themes**, fully responsive.
 -  **REST API** for integration.
@@ -95,9 +95,8 @@ services:
 ## TODO / FIXME scanning
 
 Dasha scans the compose files themselves for `TODO` and `FIXME` comments and
-shows the count on each service card — click it to see every entry with its
-`file:line` location. A comment is attributed to the service whose block it sits
-in (including a comment written directly above the service key).
+lists them in a dedicated block on the dashboard, grouped by file, each with its
+`:line` location.
 
 - **Multi-line comments count as one entry** — a run of consecutive `#` comment
   lines is collapsed into a single TODO.
@@ -117,13 +116,25 @@ services:
 
 | Variable         | Default     | Description                                       |
 | ---------------- | ----------- | ------------------------------------------------- |
-| `APP_HOST`       | `localhost` | Hostname used to build service URLs.              |
+| `APP_HOST`       | `localhost` | Host used for the card links (what your browser reaches services on). |
+| `CHECK_HOST`     | `APP_HOST`  | Host the availability checker probes. In a container set this to `host.docker.internal` (or the host IP). |
 | `CHECK_INTERVAL` | `30`        | Availability-check interval, in seconds.          |
 | `PORT`           | `1337`      | Port the dashboard listens on.                    |
 | `COMPOSE_DIR`    | `/compose`  | Root scanned for compose files (recursive).       |
 | `ICONS_DIR`      | `/icons`    | Local icon cache (mount as volume/tmpfs).         |
 | `HEALTH_TIMEOUT` | `5000`      | Availability-check request timeout (ms).          |
 | `LOG_LEVEL`      | `info`      | `debug` \| `info` \| `warn` \| `error`.           |
+
+## Troubleshooting
+
+**Services are up but show as Offline.** The availability checks run *inside* the
+container, where `localhost` is the container itself — not the host where the
+service ports are published. Set `CHECK_HOST` to a host address the container can
+reach (`host.docker.internal` on Docker Desktop, or the host's LAN IP) and add
+`extra_hosts: ["host.docker.internal:host-gateway"]` on Linux. The card links
+still use `APP_HOST`, so your browser links stay correct. (Note: non-HTTP
+services such as databases won't answer an HTTP probe and will still read as
+Offline/Timeout.)
 
 ## REST API
 

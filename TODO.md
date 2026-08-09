@@ -1,8 +1,7 @@
 # TODO
 
-- [x] **Scan services for TODO comments** — parse the compose files for
-      `TODO` / `FIXME` comments and surface the count per service on the card
-      (a comment is attributed to the service whose block it sits in).
+- [x] **Scan for TODO comments** — parse the compose files for `TODO` / `FIXME`
+      comments and list them in a dedicated block on the dashboard, grouped by file.
   - [x] Support multi-line TODO comments (consecutive comment lines) as a single
         TODO entry.
 - [x] **Publish to Docker Hub** — set up a multi-arch (amd64 + arm64) build and
@@ -24,9 +23,12 @@
 - [ ] **Apple Watch-like mosaic layout** — a unified mosaic for both app icons
       and widgets: every item shares the same round shape, and items can be freely
       arranged in any order (drag-to-reorder, persisted layout).
-- [ ] **Hide services without a URL** — don't render cards for services that have
-      no resolvable URL.
+- [x] **Hide services without a URL** — don't render cards for services that have
+      no resolvable URL (still returned by the API; just not shown).
 
 ## Bugs
 
-- [ ] Services are up and running but shown as **Offline** on the dashboard.
+- [x] Services are up and running but shown as **Offline** on the dashboard.
+      Fixed: health checks now probe `CHECK_HOST` (e.g. `host.docker.internal`)
+      separately from the `APP_HOST` used for card links, so probes reach the
+      host where ports are published instead of the container's own loopback.

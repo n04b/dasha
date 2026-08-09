@@ -23,7 +23,7 @@ export function stopHealthChecks() {
 }
 
 async function runPass() {
-  const services = store.listServices().filter((s) => s.url);
+  const services = store.listServices().filter((s) => s.checkUrl);
   await Promise.all(services.map(checkService));
 }
 
@@ -34,7 +34,7 @@ async function checkService(svc) {
 
   let patch;
   try {
-    const res = await fetch(svc.url, {
+    const res = await fetch(svc.checkUrl, {
       method: 'GET',
       redirect: 'manual',
       signal: controller.signal,
@@ -54,7 +54,7 @@ async function checkService(svc) {
       responseTime: Date.now() - started,
       lastCheck: new Date().toISOString(),
     };
-    log.debug(`${svc.name} ${patch.status} (${svc.url})`, err.message);
+    log.debug(`${svc.name} ${patch.status} (${svc.checkUrl})`, err.message);
   } finally {
     clearTimeout(timeout);
   }
@@ -62,6 +62,6 @@ async function checkService(svc) {
   const prev = svc.status;
   store.updateHealth(svc.id, patch);
   if (prev !== patch.status) {
-    log.info(`${svc.name}: ${prev} -> ${patch.status} (${svc.url})`);
+    log.info(`${svc.name}: ${prev} -> ${patch.status} (${svc.checkUrl})`);
   }
 }

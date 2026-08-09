@@ -15,7 +15,7 @@ async function getJson(url, opts) {
 }
 
 export default function App() {
-  const [data, setData] = useState({ services: [], files: [], lastBuild: null });
+  const [data, setData] = useState({ services: [], files: [], todos: [], lastBuild: null });
   const [cfg, setCfg] = useState({ checkInterval: 30 });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -23,7 +23,6 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [theme, setTheme] = useTheme();
   const [viewer, setViewer] = useState(null); // { id, path, content }
-  const [todoView, setTodoView] = useState(null); // service with todoItems
 
   const load = useCallback(async () => {
     try {
@@ -68,9 +67,12 @@ export default function App() {
     }
   }, []);
 
+  // Only services with a resolvable URL are shown on the dashboard.
+  const withUrl = useMemo(() => data.services.filter((s) => s.url), [data.services]);
+
   const services = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = [...data.services].sort((a, b) => a.name.localeCompare(b.name));
+    const list = [...withUrl].sort((a, b) => a.name.localeCompare(b.name));
     if (!q) return list;
     return list.filter(
       (s) =>
@@ -78,13 +80,13 @@ export default function App() {
         (s.image || '').toLowerCase().includes(q) ||
         (s.service || '').toLowerCase().includes(q),
     );
-  }, [data.services, query]);
+  }, [withUrl, query]);
 
   const counts = useMemo(() => {
-    const c = { online: 0, offline: 0, timeout: 0, total: data.services.length };
-    for (const s of data.services) if (c[s.status] != null) c[s.status] += 1;
+    const c = { online: 0, offline: 0, timeout: 0, total: withUrl.length };
+    for (const s of withUrl) if (c[s.status] != null) c[s.status] += 1;
     return c;
-  }, [data.services]);
+  }, [withUrl]);
 
   return (
     <div className="app">
@@ -143,15 +145,12 @@ export default function App() {
         ) : (
           <div className="grid">
             {services.map((s) => (
-              <ServiceCard
-                key={s.id}
-                service={s}
-                onView={() => openCompose(s.fileId)}
-                onTodos={() => setTodoView(s)}
-              />
+              <ServiceCard key={s.id} service={s} onView={() => openCompose(s.fileId)} />
             ))}
           </div>
         )}
+
+        {!loading && data.todos?.length > 0 && <TodoBlock todos={data.todos} />}
       </main>
 
       <footer className="footer">
@@ -159,12 +158,11 @@ export default function App() {
       </footer>
 
       {viewer && <ComposeModal file={viewer} onClose={() => setViewer(null)} />}
-      {todoView && <TodoModal service={todoView} onClose={() => setTodoView(null)} />}
     </div>
   );
 }
 
-function ServiceCard({ service, onView, onTodos }) {
+function ServiceCard({ service, onView }) {
   const meta = STATUS_META[service.status] || STATUS_META.unknown;
   const port = service.ports?.find((p) => p.published != null)?.published;
   const CardTag = service.url ? 'a' : 'div';
@@ -192,18 +190,7 @@ function ServiceCard({ service, onView, onTodos }) {
           {port ? `:${port}` : 'no port'}
           {service.responseTime != null && service.status === 'online' ? ` · ${service.responseTime}ms` : ''}
         </span>
-        <div className="foot-actions">
-          {service.todos > 0 && (
-            <button
-              className="todo-badge"
-              onClick={onTodos}
-              title={`${service.todos} TODO/FIXME comment${service.todos === 1 ? '' : 's'} in the build context`}
-            >
-              ✓ {service.todos} TODO{service.todos === 1 ? '' : 's'}
-            </button>
-          )}
-          <button className="link-btn" onClick={onView}>compose</button>
-        </div>
+        <button className="link-btn" onClick={onView}>compose</button>
       </div>
     </div>
   );
@@ -230,37 +217,39 @@ function ComposeModal({ file, onClose }) {
   );
 }
 
-function TodoModal({ service, onClose }) {
-  useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+// Dedicated block listing all TODO/FIXME comments found in the compose files,
+// grouped by file.
+function TodoBlock({ todos }) {
+  const groups = useMemo(() => {
+    const byFile = new Map();
+    for (const t of todos) {
+      if (!byFile.has(t.file)) byFile.set(t.file, []);
+      byFile.get(t.file).push(t);
+    }
+    return [...byFile.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [todos]);
 
-  const items = service.todoItems || [];
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <span className="modal-path">
-            {service.name} — {service.todos} TODO / FIXME
-          </span>
-          <button className="btn" onClick={onClose} aria-label="Close">✕</button>
-        </div>
-        <ul className="todo-list">
-          {items.map((t, i) => (
-            <li key={i} className="todo-item">
-              <span className={`todo-kw ${t.keyword.toLowerCase()}`}>{t.keyword}</span>
-              <span className="todo-text">{t.text || '(no description)'}</span>
-              <span className="todo-loc">{t.file}:{t.line}</span>
-            </li>
-          ))}
-          {service.todos > items.length && (
-            <li className="todo-more">…and {service.todos - items.length} more</li>
-          )}
-        </ul>
+    <section className="todo-block">
+      <div className="todo-block-head">
+        <h2>TODO / FIXME</h2>
+        <span className="todo-count">{todos.length}</span>
       </div>
-    </div>
+      {groups.map(([file, items]) => (
+        <div key={file} className="todo-group">
+          <div className="todo-group-file">{file}</div>
+          <ul className="todo-list">
+            {items.map((t, i) => (
+              <li key={i} className="todo-item">
+                <span className={`todo-kw ${t.keyword.toLowerCase()}`}>{t.keyword}</span>
+                <span className="todo-text">{t.text || '(no description)'}</span>
+                <span className="todo-loc">:{t.line}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </section>
   );
 }
 

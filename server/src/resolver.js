@@ -11,15 +11,31 @@ export function resolveName(service) {
 }
 
 /**
- * Resolve the URL used for the card link and availability checks.
+ * Resolve the display URL shown on the card (uses APP_HOST — the host the
+ * user's browser reaches the service on).
  * Priority: x-dasha-port -> first published (host) port.
- * Both are exposed on APP_HOST.
  */
 export function resolveUrl(service) {
+  return buildUrl(service, config.appHost);
+}
+
+/**
+ * Resolve the URL the availability checker probes (uses CHECK_HOST, which may
+ * differ from APP_HOST when running inside a container).
+ */
+export function resolveCheckUrl(service) {
+  return buildUrl(service, config.checkHost);
+}
+
+function buildUrl(service, host) {
+  const port = servicePort(service);
+  return port ? `http://${host}:${port}` : null;
+}
+
+function servicePort(service) {
   const explicit = service.ext.port != null ? Number(service.ext.port) : null;
-  const port = Number.isFinite(explicit) ? explicit : firstPublishedPort(service);
-  if (!port) return null;
-  return `http://${config.appHost}:${port}`;
+  if (Number.isFinite(explicit)) return explicit;
+  return firstPublishedPort(service);
 }
 
 function firstPublishedPort(service) {
