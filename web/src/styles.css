@@ -14,15 +14,18 @@
   --radius: 14px;
 }
 
-:root[data-theme='dark'] {
-  --bg: #0e1116;
-  --bg-elev: #171b22;
-  --border: #262c36;
-  --text: #e6e9ee;
-  --text-muted: #8b94a3;
-  --accent: #60a5fa;
-  --shadow: none;
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+/* Dark theme follows the viewer's OS preference. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1116;
+    --bg-elev: #171b22;
+    --border: #262c36;
+    --text: #e6e9ee;
+    --text-muted: #8b94a3;
+    --accent: #60a5fa;
+    --shadow: none;
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+  }
 }
 
 * { box-sizing: border-box; }
@@ -57,33 +60,6 @@ html, body {
 .subtitle { margin: 2px 0 0; color: var(--text-muted); font-size: 13px; }
 .logo { color: var(--accent); }
 
-.controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.search {
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 10px;
-  padding: 9px 12px;
-  font-size: 14px;
-  min-width: 180px;
-  outline: none;
-}
-.search:focus { border-color: var(--accent); }
-
-.stat-pills { display: flex; gap: 6px; }
-.pill {
-  min-width: 26px;
-  text-align: center;
-  padding: 4px 8px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #fff;
-}
-.pill.online { background: var(--online); }
-.pill.offline { background: var(--offline); }
-.pill.timeout { background: var(--timeout); }
-
 .btn {
   background: var(--bg-elev);
   border: 1px solid var(--border);
@@ -101,8 +77,6 @@ html, body {
 .btn:hover { border-color: var(--accent); }
 .btn:active { transform: scale(0.96); }
 .btn:disabled { opacity: 0.6; cursor: default; }
-.spin { display: inline-block; animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
 
 /* Banners ----------------------------------------------------------------- */
 .banner {
@@ -328,6 +302,5 @@ a.card-main { cursor: pointer; }
 }
 
 @media (max-width: 560px) {
-  .search { min-width: 0; flex: 1 1 140px; }
   .brand h1 { font-size: 18px; }
 }

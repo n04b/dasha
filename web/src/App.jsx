@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const STATUS_META = {
   online: { label: 'Online', cls: 'online' },
@@ -19,9 +19,6 @@ export default function App() {
   const [cfg, setCfg] = useState({ checkInterval: 30 });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [reloading, setReloading] = useState(false);
-  const [query, setQuery] = useState('');
-  const [theme, setTheme] = useTheme();
   const [viewer, setViewer] = useState(null); // { id, path, content }
 
   const load = useCallback(async () => {
@@ -48,16 +45,6 @@ export default function App() {
     return () => clearInterval(t);
   }, [cfg.checkInterval, load]);
 
-  const onReload = useCallback(async () => {
-    setReloading(true);
-    try {
-      await fetch('/api/reload', { method: 'POST' });
-      await load();
-    } finally {
-      setReloading(false);
-    }
-  }, [load]);
-
   const openCompose = useCallback(async (id) => {
     try {
       const json = await getJson(`/api/compose/${id}`);
@@ -68,25 +55,10 @@ export default function App() {
   }, []);
 
   // Only services with a resolvable URL are shown on the dashboard.
-  const withUrl = useMemo(() => data.services.filter((s) => s.url), [data.services]);
-
-  const services = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const list = [...withUrl].sort((a, b) => a.name.localeCompare(b.name));
-    if (!q) return list;
-    return list.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        (s.image || '').toLowerCase().includes(q) ||
-        (s.service || '').toLowerCase().includes(q),
-    );
-  }, [withUrl, query]);
-
-  const counts = useMemo(() => {
-    const c = { online: 0, offline: 0, timeout: 0, total: withUrl.length };
-    for (const s of withUrl) if (c[s.status] != null) c[s.status] += 1;
-    return c;
-  }, [withUrl]);
+  const services = useMemo(
+    () => data.services.filter((s) => s.url).sort((a, b) => a.name.localeCompare(b.name)),
+    [data.services],
+  );
 
   return (
     <div className="app">
@@ -96,37 +68,10 @@ export default function App() {
           <div>
             <h1>Dasha Dashboard</h1>
             <p className="subtitle">
-              {counts.total} service{counts.total === 1 ? '' : 's'} · {data.files.length} file
+              {services.length} service{services.length === 1 ? '' : 's'} · {data.files.length} file
               {data.files.length === 1 ? '' : 's'}
             </p>
           </div>
-        </div>
-
-        <div className="controls">
-          <input
-            className="search"
-            type="search"
-            placeholder="Filter services…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Filter services"
-          />
-          <div className="stat-pills" aria-hidden="true">
-            <span className="pill online" title="Online">{counts.online}</span>
-            <span className="pill offline" title="Offline">{counts.offline}</span>
-            <span className="pill timeout" title="Timeout">{counts.timeout}</span>
-          </div>
-          <button className="btn" onClick={onReload} disabled={reloading} title="Rescan compose files">
-            <span className={reloading ? 'spin' : ''}>⟳</span>
-          </button>
-          <button
-            className="btn"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            title="Toggle theme"
-            aria-label="Toggle theme"
-          >
-            {theme === 'dark' ? '☀' : '☾'}
-          </button>
         </div>
       </header>
 
@@ -138,9 +83,7 @@ export default function App() {
         ) : services.length === 0 ? (
           <div className="empty">
             <p>No services found.</p>
-            <p className="muted">
-              Mount your compose files into the container and press <span className="kbd">⟳</span>.
-            </p>
+            <p className="muted">Mount your compose files into the container to see them here.</p>
           </div>
         ) : (
           <div className="grid">
@@ -262,20 +205,4 @@ function LogoMark() {
       <rect x="13" y="13" width="8" height="8" rx="1.5" />
     </svg>
   );
-}
-
-// Theme hook: persists choice, defaults to system preference.
-function useTheme() {
-  const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('theme');
-    if (saved) return saved;
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
-  const first = useRef(true);
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    if (!first.current) localStorage.setItem('theme', theme);
-    first.current = false;
-  }, [theme]);
-  return [theme, setTheme];
 }

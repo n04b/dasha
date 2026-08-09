@@ -25,7 +25,7 @@ compose files I already maintain, with zero manual bookkeeping, so I (well, actu
 -  **Availability checks** — periodic HTTP probes → `Online` / `Offline` / `Timeout`.
 -  **TODO/FIXME scanning** — collects `TODO` / `FIXME` comments from the compose files into a dedicated block on the dashboard.
 -  **Live reload** — file watcher rebuilds on create / change / delete.
--  **Light & dark themes**, fully responsive.
+-  **Light & dark themes** (follows your OS preference), fully responsive.
 -  **REST API** for integration.
 -  **Hardened**: non-root, healthcheck, graceful shutdown, `read_only` root filesystem, multi-arch (arm64 + amd64).
 
