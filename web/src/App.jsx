@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const STATUS_META = {
   online: { label: 'Online', cls: 'online' },
@@ -19,7 +19,7 @@ export default function App() {
   const [cfg, setCfg] = useState({ checkInterval: 30 });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [viewer, setViewer] = useState(null); // { id, path, content }
+  const [todosOpen, setTodosOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -33,7 +33,6 @@ export default function App() {
     }
   }, []);
 
-  // Initial load + config, then poll on the server's check interval.
   useEffect(() => {
     getJson('/api/config').then(setCfg).catch(() => {});
     load();
@@ -45,124 +44,92 @@ export default function App() {
     return () => clearInterval(t);
   }, [cfg.checkInterval, load]);
 
-  const openCompose = useCallback(async (id) => {
-    try {
-      const json = await getJson(`/api/compose/${id}`);
-      setViewer(json);
-    } catch (e) {
-      setViewer({ path: 'error', content: e.message });
-    }
-  }, []);
-
-  // Only services with a resolvable URL are shown on the dashboard.
+  // Only services with a resolvable URL are shown.
   const services = useMemo(
     () => data.services.filter((s) => s.url).sort((a, b) => a.name.localeCompare(b.name)),
     [data.services],
   );
 
+  // Tiles that make up the mosaic: one per service, plus the TODO widget.
+  const tiles = useMemo(() => {
+    const t = services.map((s) => ({ type: 'service', key: s.id, service: s }));
+    if (data.todos?.length) t.push({ type: 'todo', key: '__todo__', count: data.todos.length });
+    return t;
+  }, [services, data.todos]);
+
+  const { ref, positions, height, size } = useHoneycomb(tiles.length);
+
   return (
     <div className="app">
-      <header className="topbar">
-        <div className="brand">
-          <LogoMark />
-          <div>
-            <h1>Dasha Dashboard</h1>
-            <p className="subtitle">
-              {services.length} service{services.length === 1 ? '' : 's'} · {data.files.length} file
-              {data.files.length === 1 ? '' : 's'}
-            </p>
-          </div>
-        </div>
-      </header>
+      {error && <div className="toast">API unreachable — {error}</div>}
 
-      {error && <div className="banner error">Could not reach the API: {error}</div>}
+      {!loading && tiles.length === 0 && (
+        <p className="empty">No services found.</p>
+      )}
 
-      <main>
-        {loading ? (
-          <div className="empty">Loading…</div>
-        ) : services.length === 0 ? (
-          <div className="empty">
-            <p>No services found.</p>
-            <p className="muted">Mount your compose files into the container to see them here.</p>
-          </div>
-        ) : (
-          <div className="grid">
-            {services.map((s) => (
-              <ServiceCard key={s.id} service={s} onView={() => openCompose(s.fileId)} />
-            ))}
-          </div>
-        )}
-
-        {!loading && data.todos?.length > 0 && <TodoBlock todos={data.todos} />}
-      </main>
-
-      <footer className="footer">
-        {data.lastBuild && <span>Last rebuild: {new Date(data.lastBuild).toLocaleTimeString()}</span>}
-      </footer>
-
-      {viewer && <ComposeModal file={viewer} onClose={() => setViewer(null)} />}
-    </div>
-  );
-}
-
-function ServiceCard({ service, onView }) {
-  const meta = STATUS_META[service.status] || STATUS_META.unknown;
-  const port = service.ports?.find((p) => p.published != null)?.published;
-  const CardTag = service.url ? 'a' : 'div';
-  const linkProps = service.url
-    ? { href: service.url, target: '_blank', rel: 'noreferrer noopener' }
-    : {};
-
-  return (
-    <div className="card">
-      <CardTag className="card-main" {...linkProps}>
-        <div className="icon">
-          <img src={service.icon} alt="" loading="lazy" />
-        </div>
-        <div className="card-body">
-          <div className="card-title">{service.name}</div>
-          <div className="card-sub">{service.image || service.service}</div>
-        </div>
-        <div className={`status ${meta.cls}`} title={meta.label}>
-          <span className="dot" />
-          <span className="status-label">{meta.label}</span>
-        </div>
-      </CardTag>
-      <div className="card-foot">
-        <span className="meta">
-          {port ? `:${port}` : 'no port'}
-          {service.responseTime != null && service.status === 'online' ? ` · ${service.responseTime}ms` : ''}
-        </span>
-        <button className="link-btn" onClick={onView}>compose</button>
+      <div className="mosaic" ref={ref} style={{ height }}>
+        {tiles.map((tile, i) => {
+          const p = positions[i];
+          if (!p) return null;
+          const style = { left: p.x, top: p.y, width: size, height: size };
+          return tile.type === 'service' ? (
+            <ServiceTile key={tile.key} service={tile.service} style={style} />
+          ) : (
+            <TodoTile key={tile.key} count={tile.count} style={style} onClick={() => setTodosOpen(true)} />
+          );
+        })}
       </div>
+
+      {todosOpen && <TodoModal todos={data.todos} onClose={() => setTodosOpen(false)} />}
     </div>
   );
 }
 
-function ComposeModal({ file, onClose }) {
+function ServiceTile({ service, style }) {
+  const meta = STATUS_META[service.status] || STATUS_META.unknown;
+  const offline = service.status === 'offline';
+  // Full-colour icon sets keep their brand colours; monochrome sets are drawn
+  // as a white silhouette so they stay visible on the black tile.
+  const colorful = /\/(logos|devicon|skill-icons|flat-color-icons|fxemoji|twemoji|noto)-/.test(service.icon);
+  return (
+    <a
+      className={`tile${offline ? ' is-offline' : ''}`}
+      style={style}
+      href={service.url}
+      target="_blank"
+      rel="noreferrer noopener"
+      title={`${service.name} · ${meta.label}`}
+    >
+      {colorful ? (
+        <img className="tile-img" src={service.icon} alt="" loading="lazy" />
+      ) : (
+        <span className="tile-icon" style={{ '--icon-src': `url("${service.icon}")` }} />
+      )}
+      <span className="tile-label">{service.name}</span>
+    </a>
+  );
+}
+
+function TodoTile({ count, style, onClick }) {
+  return (
+    <button className="tile tile-widget" style={style} onClick={onClick} title={`${count} TODO / FIXME`}>
+      <svg className="widget-glyph" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 11l3 3L22 4" />
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+      </svg>
+      <span className="widget-count">{count}</span>
+      <span className="tile-label">TODO</span>
+    </button>
+  );
+}
+
+function TodoModal({ todos, onClose }) {
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <span className="modal-path">{file.path}</span>
-          <button className="btn" onClick={onClose} aria-label="Close">✕</button>
-        </div>
-        {file.error && <div className="banner error">{file.error}</div>}
-        <pre className="code"><code>{file.content}</code></pre>
-      </div>
-    </div>
-  );
-}
-
-// Dedicated block listing all TODO/FIXME comments found in the compose files,
-// grouped by file.
-function TodoBlock({ todos }) {
   const groups = useMemo(() => {
     const byFile = new Map();
     for (const t of todos) {
@@ -173,36 +140,89 @@ function TodoBlock({ todos }) {
   }, [todos]);
 
   return (
-    <section className="todo-block">
-      <div className="todo-block-head">
-        <h2>TODO / FIXME</h2>
-        <span className="todo-count">{todos.length}</span>
-      </div>
-      {groups.map(([file, items]) => (
-        <div key={file} className="todo-group">
-          <div className="todo-group-file">{file}</div>
-          <ul className="todo-list">
-            {items.map((t, i) => (
-              <li key={i} className="todo-item">
-                <span className={`todo-kw ${t.keyword.toLowerCase()}`}>{t.keyword}</span>
-                <span className="todo-text">{t.text || '(no description)'}</span>
-                <span className="todo-loc">:{t.line}</span>
-              </li>
-            ))}
-          </ul>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <span className="modal-title">TODO / FIXME · {todos.length}</span>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
         </div>
-      ))}
-    </section>
+        <div className="modal-body">
+          {groups.map(([file, items]) => (
+            <div key={file} className="todo-group">
+              <div className="todo-group-file">{file}</div>
+              <ul className="todo-list">
+                {items.map((t, i) => (
+                  <li key={i} className="todo-item">
+                    <span className={`todo-kw ${t.keyword.toLowerCase()}`}>{t.keyword}</span>
+                    <span className="todo-text">{t.text || '(no description)'}</span>
+                    <span className="todo-loc">:{t.line}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
-function LogoMark() {
-  return (
-    <svg className="logo" viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
-      <rect x="3" y="3" width="8" height="8" rx="1.5" />
-      <rect x="13" y="3" width="8" height="8" rx="1.5" />
-      <rect x="3" y="13" width="8" height="8" rx="1.5" />
-      <rect x="13" y="13" width="8" height="8" rx="1.5" />
-    </svg>
-  );
+// Lay out `count` circular tiles in a centered honeycomb, recomputed on resize.
+function useHoneycomb(count) {
+  const ref = useRef(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const ro = new ResizeObserver((entries) => setWidth(entries[0].contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return useMemo(() => ({ ref, ...computeLayout(count, width) }), [count, width]);
+}
+
+function computeLayout(count, width) {
+  const D = 88; // tile diameter
+  const gap = 16;
+  const s = D + gap; // center-to-center spacing
+  if (!width || count === 0) return { positions: [], height: 0, size: D };
+
+  // Place tiles on a hexagonal grid, spiralling out from the centre so they
+  // pack into a honeycomb cluster (Apple Watch-style) rather than plain rows.
+  const cells = hexSpiral(count);
+  const cx = cells.map((c) => s * (c.q + c.r / 2));
+  const cy = cells.map((c) => s * (Math.sqrt(3) / 2) * c.r);
+  const minX = Math.min(...cx);
+  const maxX = Math.max(...cx);
+  const minY = Math.min(...cy);
+  const maxY = Math.max(...cy);
+
+  const clusterW = maxX - minX + D;
+  const clusterH = maxY - minY + D;
+  const baseX = Math.max(0, (width - clusterW) / 2);
+
+  const positions = cells.map((_, i) => ({ x: baseX + (cx[i] - minX), y: cy[i] - minY }));
+  return { positions, height: clusterH, size: D };
+}
+
+// Axial hex coordinates spiralling out from the centre: 1, then rings of 6, 12…
+function hexSpiral(n) {
+  const cells = [{ q: 0, r: 0 }];
+  const dirs = [
+    [1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1],
+  ];
+  for (let radius = 1; cells.length < n; radius += 1) {
+    let q = dirs[4][0] * radius;
+    let r = dirs[4][1] * radius;
+    for (let side = 0; side < 6 && cells.length < n; side += 1) {
+      for (let step = 0; step < radius && cells.length < n; step += 1) {
+        cells.push({ q, r });
+        q += dirs[side][0];
+        r += dirs[side][1];
+      }
+    }
+  }
+  return cells.slice(0, n);
 }

@@ -1,8 +1,8 @@
 # Dasha Dashboard
 
 A self-hosted dashboard that **automatically discovers services from your Docker
-Compose files** and renders them as a clean, responsive grid of cards — no manual
-configuration required.
+Compose files** and renders them as a minimalist, Apple Watch-style honeycomb
+mosaic on a black background — no manual configuration required.
 
 Point it at a directory of compose projects; it scans them recursively, extracts
 each service, resolves an icon (cached locally from [Iconify](https://iconify.design)),
@@ -23,9 +23,9 @@ compose files I already maintain, with zero manual bookkeeping, so I (well, actu
 -  **Zero-config dashboard** — cards are built straight from the compose files.
 -  **Local icon cache** — SVGs pulled from Iconify and stored in `/icons`.
 -  **Availability checks** — periodic HTTP probes → `Online` / `Offline` / `Timeout`.
--  **TODO/FIXME scanning** — collects `TODO` / `FIXME` comments from the compose files into a dedicated block on the dashboard.
+-  **TODO/FIXME scanning** — collects `TODO` / `FIXME` comments from the compose files into a TODO widget tile.
 -  **Live reload** — file watcher rebuilds on create / change / delete.
--  **Light & dark themes** (follows your OS preference), fully responsive.
+-  **Minimalist mosaic UI** — circular tiles in a honeycomb on a black background, fully responsive.
 -  **REST API** for integration.
 -  **Hardened**: non-root, healthcheck, graceful shutdown, `read_only` root filesystem, multi-arch (arm64 + amd64).
 
@@ -95,8 +95,8 @@ services:
 ## TODO / FIXME scanning
 
 Dasha scans the compose files themselves for `TODO` and `FIXME` comments and
-lists them in a dedicated block on the dashboard, grouped by file, each with its
-`:line` location.
+surfaces them as a **TODO widget tile** in the mosaic; clicking it opens a list
+grouped by file, each entry with its `:line` location.
 
 - **Multi-line comments count as one entry** — a run of consecutive `#` comment
   lines is collapsed into a single TODO.

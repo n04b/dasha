@@ -1,31 +1,17 @@
 :root {
-  --bg: #f5f6f8;
-  --bg-elev: #ffffff;
-  --border: #e4e7ec;
-  --text: #1a1d21;
-  --text-muted: #6b7280;
-  --accent: #3b82f6;
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
-  --shadow-lg: 0 8px 24px rgba(16, 24, 40, 0.12);
-  --online: #22c55e;
-  --offline: #ef4444;
-  --timeout: #f59e0b;
-  --unknown: #9ca3af;
-  --radius: 14px;
-}
-
-/* Dark theme follows the viewer's OS preference. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0e1116;
-    --bg-elev: #171b22;
-    --border: #262c36;
-    --text: #e6e9ee;
-    --text-muted: #8b94a3;
-    --accent: #60a5fa;
-    --shadow: none;
-    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
-  }
+  --bg: #000000;
+  --tile: #16171a;
+  --tile-hover: #202226;
+  --tile-border: rgba(255, 255, 255, 0.07);
+  --icon-color: #eef1f5;
+  --text: #e6e9ee;
+  --text-muted: #8b93a1;
+  --accent: #0a84ff;
+  --online: #30d158;
+  --offline: #ff453a;
+  --timeout: #ff9f0a;
+  --unknown: #8e8e93;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -35,183 +21,190 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 .app {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px 20px 60px;
-  min-height: 100vh;
-}
-
-/* Top bar ----------------------------------------------------------------- */
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  padding: 8px 0 20px;
-}
-.brand { display: flex; align-items: center; gap: 12px; }
-.brand h1 { font-size: 20px; margin: 0; line-height: 1.1; }
-.subtitle { margin: 2px 0 0; color: var(--text-muted); font-size: 13px; }
-.logo { color: var(--accent); }
-
-.btn {
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  color: var(--text);
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  font-size: 16px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color 0.15s, transform 0.05s;
-}
-.btn:hover { border-color: var(--accent); }
-.btn:active { transform: scale(0.96); }
-.btn:disabled { opacity: 0.6; cursor: default; }
-
-/* Banners ----------------------------------------------------------------- */
-.banner {
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 14px;
-  margin-bottom: 16px;
-}
-.banner.error {
-  background: color-mix(in srgb, var(--offline) 15%, var(--bg-elev));
-  border: 1px solid color-mix(in srgb, var(--offline) 40%, var(--border));
-  color: var(--text);
-}
-
-/* Grid + cards ------------------------------------------------------------ */
-.grid {
+  min-height: 100dvh;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 14px;
+  place-items: center;
+  padding: 56px 24px;
 }
 
-.card {
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+/* Honeycomb mosaic --------------------------------------------------------- */
+.mosaic {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
 }
-.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
 
-.card-main {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
+.tile {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(120% 120% at 50% 0%, #202227 0%, #131417 70%);
+  border: 1px solid var(--tile-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 6px 18px rgba(0, 0, 0, 0.45);
+  display: grid;
+  place-items: center;
   text-decoration: none;
   color: inherit;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
+  will-change: transform;
 }
-a.card-main { cursor: pointer; }
+.tile:hover,
+.tile:focus-visible {
+  transform: scale(1.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 12px 30px rgba(0, 0, 0, 0.6);
+  z-index: 5;
+  outline: none;
+}
 
-.icon {
-  flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
+/* Full-colour brand icon */
+.tile-img {
+  width: 50%;
+  height: 50%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* Monochrome icon rendered via mask so any SVG (mono or colored) shows as a
+   clean silhouette that is always visible on the dark tile. The icon URL is
+   passed per-tile as the --icon-src custom property. */
+.tile-icon {
+  width: 46%;
+  height: 46%;
+  background: var(--icon-color);
+  -webkit-mask: var(--icon-src) center / contain no-repeat;
+  mask: var(--icon-src) center / contain no-repeat;
+}
+
+/* Offline services get a thin red rim; everything else has no status marker. */
+.tile.is-offline {
+  border-color: transparent;
+  box-shadow: 0 0 0 1px var(--offline);
+}
+
+/* Name label, revealed on hover/focus */
+.tile-label {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text);
+  white-space: nowrap;
+  background: rgba(20, 20, 22, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 4px 10px;
+  border-radius: 9px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s, transform 0.18s;
+}
+.tile:hover .tile-label,
+.tile:focus-visible .tile-label {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* TODO widget tile */
+.tile-widget {
+  background: linear-gradient(160deg, #2a2118, #17140f);
+  border-color: rgba(255, 159, 10, 0.25);
+}
+/* Glyph stays centred in the tile (via place-items); the count floats just
+   below it, absolutely positioned so it doesn't shift the icon off-centre. */
+.widget-glyph {
+  width: 34px;
+  height: 34px;
+  fill: none;
+  stroke: var(--timeout);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.widget-count {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, 20px);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--timeout);
+}
+
+/* Toast / empty ------------------------------------------------------------ */
+.toast {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: color-mix(in srgb, var(--offline) 22%, #111);
+  border: 1px solid color-mix(in srgb, var(--offline) 45%, transparent);
+  color: var(--text);
+  padding: 8px 14px;
   border-radius: 10px;
-  background: var(--bg);
-  border: 1px solid var(--border);
+  font-size: 13px;
+  z-index: 20;
+}
+.empty { color: var(--text-muted); font-size: 15px; }
+
+/* Modal -------------------------------------------------------------------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 20px;
+  z-index: 50;
 }
-.icon img { width: 28px; height: 28px; object-fit: contain; }
-
-.card-body { flex: 1 1 auto; min-width: 0; }
-.card-title {
-  font-weight: 600;
-  font-size: 15px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.modal {
+  background: #101114;
+  border: 1px solid var(--tile-border);
+  border-radius: 18px;
+  width: min(720px, 100%);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
 }
-.card-sub {
-  color: var(--text-muted);
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-top: 2px;
-}
-
-.status { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
-.status .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--unknown); }
-.status .status-label { font-size: 12px; color: var(--text-muted); }
-.status.online .dot { background: var(--online); box-shadow: 0 0 0 3px color-mix(in srgb, var(--online) 25%, transparent); }
-.status.offline .dot { background: var(--offline); }
-.status.timeout .dot { background: var(--timeout); }
-.status.unknown .dot { animation: pulse 1.4s ease-in-out infinite; }
-.status.nourl .dot { background: transparent; border: 1px solid var(--border); }
-@keyframes pulse { 50% { opacity: 0.35; } }
-
-.card-foot {
+.modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
-  border-top: 1px solid var(--border);
-  font-size: 12px;
-  color: var(--text-muted);
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--tile-border);
 }
-.link-btn {
+.modal-title { font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.icon-btn {
   background: none;
   border: none;
-  color: var(--accent);
+  color: var(--text-muted);
+  font-size: 16px;
   cursor: pointer;
-  font-size: 12px;
-  padding: 2px 4px;
+  padding: 4px 8px;
+  border-radius: 8px;
 }
-.link-btn:hover { text-decoration: underline; }
+.icon-btn:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+.modal-body { overflow: auto; padding: 6px 8px 10px; }
 
-/* TODO block ------------------------------------------------------------- */
-.todo-block {
-  margin-top: 28px;
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-.todo-block-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--border);
-}
-.todo-block-head h2 { margin: 0; font-size: 15px; }
-.todo-count {
-  background: var(--timeout);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  min-width: 22px;
-  text-align: center;
-  padding: 1px 8px;
-  border-radius: 20px;
-}
-.todo-group { padding: 4px 8px 8px; }
+/* TODO list */
 .todo-group-file {
-  font-family: ui-monospace, monospace;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 12px;
   color: var(--text-muted);
-  padding: 10px 10px 4px;
+  padding: 12px 12px 4px;
 }
 .todo-list { list-style: none; margin: 0; padding: 0; }
 .todo-item {
@@ -219,8 +212,8 @@ a.card-main { cursor: pointer; }
   grid-template-columns: auto 1fr auto;
   align-items: baseline;
   gap: 10px;
-  padding: 9px 10px;
-  border-bottom: 1px solid var(--border);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--tile-border);
   font-size: 13px;
 }
 .todo-item:last-child { border-bottom: none; }
@@ -240,67 +233,4 @@ a.card-main { cursor: pointer; }
   font-size: 11px;
   color: var(--text-muted);
   white-space: nowrap;
-}
-
-/* Empty / footer ---------------------------------------------------------- */
-.empty {
-  text-align: center;
-  padding: 80px 20px;
-  color: var(--text);
-}
-.empty .muted { color: var(--text-muted); font-size: 14px; }
-.kbd {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 1px 6px;
-  background: var(--bg-elev);
-}
-.footer {
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 12px;
-  padding-top: 24px;
-}
-
-/* Modal ------------------------------------------------------------------- */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  z-index: 50;
-}
-.modal {
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  width: min(820px, 100%);
-  max-height: 85vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: var(--shadow-lg);
-}
-.modal-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-}
-.modal-path { font-family: ui-monospace, monospace; font-size: 13px; color: var(--text-muted); word-break: break-all; }
-.code {
-  margin: 0;
-  padding: 16px;
-  overflow: auto;
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 13px;
-  line-height: 1.5;
-  white-space: pre;
-}
-
-@media (max-width: 560px) {
-  .brand h1 { font-size: 18px; }
 }
