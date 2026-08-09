@@ -23,6 +23,10 @@ services:
       CHECK_INTERVAL: "30"  # availability check interval (seconds)
       PORT: "1337"
       LOG_LEVEL: info
+      # Services hidden from the dashboard (comma-separated, matched against
+      # service key / container name / image name). Default: hides "dasha" so
+      # the dashboard doesn't show a card for itself.
+      # HIDE_SERVICES: "dasha"
     # Makes host.docker.internal resolve to the Docker host on Linux too.
     extra_hosts:
       - "host.docker.internal:host-gateway"

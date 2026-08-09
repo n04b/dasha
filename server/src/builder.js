@@ -5,7 +5,7 @@ import { createLogger } from './logger.js';
 import { findComposeFiles } from './scanner.js';
 import path from 'node:path';
 import { parseComposeFile } from './parser.js';
-import { resolveName, resolveUrl, resolveCheckUrl, iconCandidates } from './resolver.js';
+import { resolveName, resolveUrl, resolveCheckUrl, iconCandidates, imageBaseName } from './resolver.js';
 import { resolveIcon } from './icons.js';
 import { scanComposeText } from './todos.js';
 import { store } from './state.js';
@@ -54,6 +54,10 @@ async function doRebuild() {
     todos.push(...fileTodos);
 
     for (const svc of parsed.services) {
+      if (isHiddenService(svc)) {
+        log.info(`hiding service ${svc.name} (matches HIDE_SERVICES)`);
+        continue;
+      }
       const url = resolveUrl(svc);
       const checkUrl = resolveCheckUrl(svc);
       const icon = await resolveIcon(iconCandidates(svc));
@@ -85,4 +89,12 @@ async function doRebuild() {
   log.info(
     `rebuild complete: ${files.length} file(s), ${services.length} service(s), ${todos.length} TODO(s) in ${Date.now() - started}ms`,
   );
+}
+
+// A service is hidden when its service key, container name or image base name
+// matches one of the configured HIDE_SERVICES entries.
+function isHiddenService(svc) {
+  const image = imageBaseName(svc.image);
+  const names = [svc.name, svc.containerName, image].filter(Boolean).map((n) => n.toLowerCase());
+  return names.some((n) => config.hideServices.includes(n));
 }

@@ -37,6 +37,13 @@ export const config = {
   // Iconify HTTP API base.
   iconifyApi: process.env.ICONIFY_API || 'https://api.iconify.design',
 
+  // Comma-separated service / image names (case-insensitive) hidden from the
+  // dashboard. Defaults to hiding the dashboard's own service ("dasha") so it
+  // doesn't show a card for itself.
+  hideServices:
+    process.env.HIDE_SERVICES?.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean) ||
+    ['dasha'],
+
   // Log verbosity: debug | info | warn | error
   logLevel: process.env.LOG_LEVEL || 'info',
 };
