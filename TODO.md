@@ -8,8 +8,11 @@
       push `dasha:latest` + version tags, ideally automated via CI on git tags.
   - [x] Write the Docker Hub repository description / overview (it is not synced
         automatically from the README). See `DOCKERHUB.md`.
-- [ ] **Set up GitHub Actions** — CI workflow to lint/build on every push and,
-      on git tags, build the multi-arch image and push it to Docker Hub.
+- [x] **Set up GitHub Actions** — CI workflow (`.github/workflows/ci.yml`) builds
+      the frontend + syntax-checks the server on every push/PR, and on pushes to
+      `main` / `v*` tags builds the multi-arch image and pushes it to Docker Hub
+      (plus syncs the Docker Hub description on tags). Needs repo variable
+      `DOCKERHUB_USERNAME` and secret `DOCKERHUB_TOKEN`.
 - [ ] **Widget system** — pluggable per-card widgets that show extra live info
       (e.g. container stats, uptime, version, custom API values), configurable via
       `x-dasha-*` extensions and rendered on the service card.
