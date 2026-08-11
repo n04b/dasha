@@ -1,11 +1,15 @@
 name: CI
 
+# Manual only: start it from Actions -> CI -> "Run workflow".
+# Pick the ref there — run from `main` to publish the `edge` tag, or from a
+# `v*` tag to publish the version tags and `latest`.
 on:
-  push:
-    branches: [main]
-    tags: ['v*.*.*']
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      push_image:
+        description: Build and push the Docker image
+        type: boolean
+        default: true
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -42,9 +46,10 @@ jobs:
     name: Build & push image
     needs: build
     runs-on: ubuntu-latest
-    # Only publish on pushes to main / version tags, and only once the Docker Hub
-    # username is configured (repo Variable). Pull requests never publish.
-    if: github.event_name != 'pull_request' && vars.DOCKERHUB_USERNAME != ''
+    # Publish only when the run was started with "Build and push the Docker
+    # image" ticked, and only once DOCKERHUB_USERNAME is configured (repo
+    # Variable) — otherwise the login step would fail on a fresh clone/fork.
+    if: inputs.push_image && vars.DOCKERHUB_USERNAME != ''
     steps:
       - uses: actions/checkout@v4
 
