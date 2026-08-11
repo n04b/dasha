@@ -52,7 +52,7 @@ services:
 
 | Variable         | Default     | Description                                                            |
 | ---------------- | ----------- | ---------------------------------------------------------------------- |
-| `APP_HOST`       | `localhost` | Host used for the tile links (what your browser reaches services on).  |
+| `APP_HOST`       | `localhost` | Fallback host in the API payload and default for `CHECK_HOST`. Tile links use the host from your browser's address bar instead. |
 | `CHECK_HOST`     | `APP_HOST`  | Host the availability checker probes. In a container set to `host.docker.internal` (or the host IP). |
 | `CHECK_INTERVAL` | `30`        | Availability-check interval, in seconds.                              |
 | `PORT`           | `1337`      | Port the dashboard listens on inside the container.                    |

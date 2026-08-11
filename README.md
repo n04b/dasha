@@ -72,7 +72,11 @@ For every service the following fields are extracted:
 1. `x-dasha-port`
 2. first published (host) port
 
-The port is combined with `APP_HOST`, e.g. `http://server.local:3000`.
+The port is combined with **the host you are viewing the dashboard on**: open it
+at `http://server.local`, and the tiles link to `http://server.local:3000`; reach
+it by IP, and they follow. Nothing to configure, and the links keep working from
+every machine. (`APP_HOST` still fills in the `url` field the API returns, and is
+the default for `CHECK_HOST`.)
 
 ### Variables
 
@@ -138,7 +142,7 @@ services:
 
 | Variable         | Default     | Description                                       |
 | ---------------- | ----------- | ------------------------------------------------- |
-| `APP_HOST`       | `localhost` | Host used for the card links (what your browser reaches services on). |
+| `APP_HOST`       | `localhost` | Fallback host for the URLs in the API payload, and the default for `CHECK_HOST`. Tile links ignore it — they use the host from your browser's address bar. |
 | `CHECK_HOST`     | `APP_HOST`  | Host the availability checker probes. In a container set this to `host.docker.internal` (or the host IP). |
 | `CHECK_INTERVAL` | `30`        | Availability-check interval, in seconds.          |
 | `PORT`           | `1337`      | Port the dashboard listens on.                    |

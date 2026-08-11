@@ -37,6 +37,15 @@
 
 ## Bugs
 
+- [x] Tile links used the fixed `APP_HOST`, so a dashboard opened on any other
+      host (LAN IP, hostname) produced links nobody could follow. Fixed: the
+      link keeps the scheme and port from the server but takes its host from
+      the browser's address bar.
+- [x] Blank dashboard when `ResizeObserver` never fires — the mosaic derives
+      every position from the observed width, so a throttled or backgrounded
+      tab rendered nothing at all. Fixed: measure synchronously in a layout
+      effect, with the observer and a `window.resize` listener for updates.
+
 - [x] Services are up and running but shown as **Offline** on the dashboard.
       Fixed: health checks now probe `CHECK_HOST` (e.g. `host.docker.internal`)
       separately from the `APP_HOST` used for card links, so probes reach the

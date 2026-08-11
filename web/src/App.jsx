@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 const STATUS_META = {
   online: { label: 'Online', cls: 'online' },
@@ -114,9 +114,24 @@ export default function App() {
   );
 }
 
+// The server builds URLs from APP_HOST, which it cannot know is reachable from
+// wherever the dashboard is being viewed. Keep its scheme and port, but point
+// the link at the host currently in the address bar — if you opened the
+// dashboard at server.local, its services live on server.local too.
+function linkForBrowser(serviceUrl) {
+  try {
+    const url = new URL(serviceUrl, window.location.href);
+    url.hostname = window.location.hostname;
+    return url.toString();
+  } catch {
+    return serviceUrl;
+  }
+}
+
 function ServiceTile({ service, style }) {
   const meta = STATUS_META[service.status] || STATUS_META.unknown;
   const offline = service.status === 'offline';
+  const href = linkForBrowser(service.url);
   // Full-colour icon sets keep their brand colours; monochrome sets are drawn
   // as a white silhouette so they stay visible on the black tile.
   const colorful = /\/(logos|devicon|skill-icons|flat-color-icons|fxemoji|twemoji|noto)-/.test(service.icon);
@@ -124,7 +139,7 @@ function ServiceTile({ service, style }) {
     <a
       className={`tile${offline ? ' is-offline' : ''}`}
       style={style}
-      href={service.url}
+      href={href}
       target="_blank"
       rel="noreferrer noopener"
       title={`${service.name} · ${meta.label}`}
@@ -240,12 +255,26 @@ function useHoneycomb(count) {
   const ref = useRef(null);
   const [width, setWidth] = useState(0);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
-    const ro = new ResizeObserver((entries) => setWidth(entries[0].contentRect.width));
-    ro.observe(el);
-    return () => ro.disconnect();
+
+    const measure = () => setWidth(el.getBoundingClientRect().width);
+    // Measure straight away: the whole mosaic is positioned from this width, so
+    // waiting for a ResizeObserver callback that may never arrive (throttled or
+    // backgrounded tabs) would leave the dashboard blank.
+    measure();
+
+    let ro;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(measure);
+      ro.observe(el);
+    }
+    window.addEventListener('resize', measure);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', measure);
+    };
   }, []);
 
   return useMemo(() => ({ ref, ...computeLayout(count, width) }), [count, width]);
