@@ -124,6 +124,8 @@ services:
 | `ICONS_DIR`      | `/icons`    | Local icon cache (mount as volume/tmpfs).         |
 | `HIDE_SERVICES`  | `dasha`     | Comma-separated names hidden from the dashboard (matched case-insensitively against service key, container name and image base name). Default hides the dashboard's own service. |
 | `HEALTH_TIMEOUT` | `5000`      | Availability-check request timeout (ms).          |
+| `ICON_TIMEOUT`   | `3000`      | Iconify lookup timeout (ms).                      |
+| `ICON_CONCURRENCY` | `6`       | Parallel icon lookups per rebuild.                |
 | `LOG_LEVEL`      | `info`      | `debug` \| `info` \| `warn` \| `error`.           |
 
 ## Troubleshooting

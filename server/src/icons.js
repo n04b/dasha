@@ -147,6 +147,34 @@ function sanitize(s) {
   return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
+// --- Circuit breaker --------------------------------------------------------
+// When Iconify is unreachable every lookup would otherwise burn a full timeout,
+// turning a rebuild into minutes of waiting. After a few consecutive failures
+// stop calling out entirely for a cooldown and fall back to the default icon.
+const FAILURE_THRESHOLD = 3;
+const COOLDOWN_MS = 60_000;
+
+let consecutiveFailures = 0;
+let breakerUntil = 0;
+
+function breakerOpen() {
+  if (breakerUntil && Date.now() < breakerUntil) return true;
+  if (breakerUntil) {
+    // Cooldown elapsed — allow traffic again.
+    breakerUntil = 0;
+    consecutiveFailures = 0;
+  }
+  return false;
+}
+
+function noteFailure() {
+  consecutiveFailures += 1;
+  if (consecutiveFailures >= FAILURE_THRESHOLD && !breakerUntil) {
+    breakerUntil = Date.now() + COOLDOWN_MS;
+    log.warn(`Iconify unreachable; pausing icon lookups for ${COOLDOWN_MS / 1000}s`);
+  }
+}
+
 async function fetchJson(url) {
   const text = await fetchText(url);
   if (!text) return null;
@@ -158,13 +186,16 @@ async function fetchJson(url) {
 }
 
 async function fetchText(url) {
+  if (breakerOpen()) return null;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), config.healthTimeout);
+  const timer = setTimeout(() => controller.abort(), config.iconTimeout);
   try {
     const res = await fetch(url, { signal: controller.signal, headers: { 'user-agent': 'compose-dashboard' } });
     if (!res.ok) return null;
+    consecutiveFailures = 0;
     return await res.text();
   } catch (err) {
+    noteFailure();
     log.debug(`fetch failed ${url}`, err.message);
     return null;
   } finally {

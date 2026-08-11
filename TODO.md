@@ -54,9 +54,11 @@
 - [x] HTTP 5xx was reported as `online` — fixed: a 5xx response now maps to
       `offline`. 4xx deliberately stays `online` (an API-only service returns
       404 at `/`, and 401/403 still prove something is listening).
-- [ ] Icon resolution is sequential and unbounded in time — 2 network calls per
+- [x] Icon resolution is sequential and unbounded in time — 2 network calls per
       service × up to `healthTimeout` each; a down Iconify API grinds every
-      rebuild. Add concurrency limits / timeouts / fallback short-circuit.
+      rebuild. Fixed: lookups run `ICON_CONCURRENCY` at a time, use their own
+      shorter `ICON_TIMEOUT`, and a circuit breaker pauses calls for 60s after
+      3 consecutive failures (services fall back to the default icon).
 - [x] Long-syntax port ranges (`published: "8000-8001"`) yield `NaN` in the
       parser; short syntax handles ranges but long doesn't. Fixed: both paths
       now use the same range-aware `firstPort`.
