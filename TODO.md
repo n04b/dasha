@@ -72,6 +72,8 @@
 - [x] Web: modal lacks `role="dialog"`, `aria-modal`, accessible name, focus
       trap, and focus restore on close. Fixed: all four, verified with the
       keyboard (Tab stays inside, Escape returns focus to the TODO tile).
-- [ ] `parseComposeFile`/`todos` could false-positive on `#` inside a value
+- [x] `parseComposeFile`/`todos` could false-positive on `#` inside a value
       without leading whitespace (a `#` in the middle of a line isn't a YAML
-      comment start).
+      comment start). Fixed: YAML scanning now requires the `#` to start the
+      line or follow whitespace, so URL fragments and values like `v1#x` are
+      no longer read as comments.

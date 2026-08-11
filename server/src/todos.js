@@ -5,8 +5,10 @@
 // Each entry carries its absolute line number so the builder can attribute it
 // to the service whose block it falls in.
 
-// YAML comment syntax: `#` line comments, no block comments.
-const YAML_SYNTAX = { line: ['#'], block: [] };
+// YAML comment syntax: `#` line comments, no block comments. In YAML a `#`
+// only opens a comment at the start of a line or after whitespace — `a#b` and
+// `http://x/y#frag` are plain values — hence requireSpaceBefore.
+const YAML_SYNTAX = { line: ['#'], block: [], requireSpaceBefore: true };
 
 const KEYWORD_RE = /^[\s*]*(TODO|FIXME)\b:?\s*(.*)$/i;
 const KEYWORD_TEST = /\b(TODO|FIXME)\b/i;
@@ -30,7 +32,7 @@ export function scanComposeText(text) {
  */
 export function extractTodos(text, syntax) {
   const { masked, tokens } = maskBlocks(text, syntax.block);
-  collectLineRuns(masked, syntax.line, tokens);
+  collectLineRuns(masked, syntax.line, tokens, syntax.requireSpaceBefore);
   tokens.sort((a, b) => a.startLine - b.startLine);
 
   const entries = [];
@@ -60,12 +62,12 @@ function maskBlocks(text, blockDelims) {
 }
 
 // Group runs of consecutive single-line comments into comment tokens.
-function collectLineRuns(masked, lineMarkers, tokens) {
+function collectLineRuns(masked, lineMarkers, tokens, requireSpaceBefore) {
   if (!lineMarkers.length) return;
   const lines = masked.split('\n');
   let run = null;
   for (let i = 0; i < lines.length; i += 1) {
-    const idx = firstLineComment(lines[i], lineMarkers);
+    const idx = firstLineComment(lines[i], lineMarkers, requireSpaceBefore);
     if (idx === -1) {
       run = null;
       continue;
@@ -102,7 +104,10 @@ function entriesFromCommentLines(lines, entries) {
 
 // Index of the first line-comment marker that is not inside a string literal,
 // so markers within e.g. "http://…" are ignored. -1 when there is none.
-function firstLineComment(line, markers) {
+//
+// With requireSpaceBefore (YAML), the marker must also start the line or follow
+// whitespace, so `PORT: 80#1` and `URL: http://x/y#frag` stay plain values.
+function firstLineComment(line, markers, requireSpaceBefore = false) {
   let inString = null;
   for (let i = 0; i < line.length; i += 1) {
     const ch = line[i];
@@ -115,6 +120,7 @@ function firstLineComment(line, markers) {
       inString = ch;
       continue;
     }
+    if (requireSpaceBefore && i > 0 && !/\s/.test(line[i - 1])) continue;
     for (const m of markers) {
       if (line.startsWith(m, i)) return i;
     }
