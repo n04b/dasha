@@ -1,0 +1,16 @@
+# Example project driven by variables from the .env file next to it.
+# Values are substituted before parsing, so the ports below resolve to real
+# numbers and the cards get working URLs.
+services:
+  whoami:
+    image: traefik/whoami
+    x-dasha-name: "${WHOAMI_NAME}"
+    ports:
+      - "${WHOAMI_PORT}:80"
+
+  # TODO: move this one into the .env file too
+  echo:
+    image: ealen/echo-server
+    ports:
+      # Falls back to 8089 when ECHO_PORT is not set anywhere.
+      - "${ECHO_PORT:-8089}:80"

@@ -1,13 +1,33 @@
 // Parse a compose file into normalized service descriptors.
 import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import crypto from 'node:crypto';
 import YAML from 'yaml';
 import { createLogger } from './logger.js';
+import { interpolate, parseEnvFile } from './interpolate.js';
 
 const log = createLogger('parser');
 
 export function hashId(input) {
   return crypto.createHash('sha1').update(input).digest('hex').slice(0, 12);
+}
+
+/**
+ * Variables available for interpolation in a compose file: the `.env` sitting
+ * in the same directory, overridden by the process environment — the same
+ * precedence Compose applies.
+ */
+async function loadVariables(filePath) {
+  const envPath = path.join(path.dirname(filePath), '.env');
+  let fileVars = {};
+  try {
+    fileVars = parseEnvFile(await fs.readFile(envPath, 'utf8'));
+    const count = Object.keys(fileVars).length;
+    if (count) log.debug(`loaded ${count} variable(s) from ${envPath}`);
+  } catch {
+    // No .env next to the compose file — perfectly normal.
+  }
+  return { ...fileVars, ...process.env };
 }
 
 /**
@@ -24,10 +44,20 @@ export async function parseComposeFile(filePath) {
     return { id, path: filePath, raw: '', error: `read error: ${err.message}`, services: [] };
   }
 
+  // Substitute ${VAR} before parsing, the way Compose itself does, so a port
+  // written as "${APP_PORT}:80" resolves to a real number. `raw` deliberately
+  // keeps the original text: it is what the API serves and what TODO comments
+  // are scanned from.
+  const vars = await loadVariables(filePath);
+  const { text: resolved, missing } = interpolate(raw, vars);
+  if (missing.length) {
+    log.warn(`${filePath}: unset variable(s) ${missing.join(', ')} — substituted with empty string`);
+  }
+
   let doc;
   try {
     // parseDocument keeps node ranges, so we can map each service to its lines.
-    doc = YAML.parseDocument(raw);
+    doc = YAML.parseDocument(resolved);
   } catch (err) {
     log.error(`invalid YAML in ${filePath}`, err.message);
     return { id, path: filePath, raw, error: `yaml error: ${err.message}`, services: [] };
@@ -45,7 +75,9 @@ export async function parseComposeFile(filePath) {
   const servicesNode = doc.get('services', true);
   const services = Object.entries(servicesRoot).map(([name, def]) => {
     const pair = servicesNode?.items?.find((p) => String(p.key) === name);
-    const range = serviceLineRange(pair, raw);
+    // Ranges are offsets into the interpolated text, so line numbers must be
+    // counted there too (both texts have the same lines, just different widths).
+    const range = serviceLineRange(pair, resolved);
     return normalizeService(name, def || {}, id, filePath, range);
   });
 

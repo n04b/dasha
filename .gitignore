@@ -4,4 +4,4 @@ web/dist/
 icons/
 *.log
 .DS_Store
-.env
+# .env

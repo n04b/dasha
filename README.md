@@ -24,6 +24,7 @@ compose files I already maintain, with zero manual bookkeeping, so I (well, actu
 -  **Local icon cache** — SVGs pulled from Iconify and stored in `/icons`.
 -  **Availability checks** — periodic HTTP probes → `Online` / `Offline` / `Timeout`.
 -  **TODO/FIXME scanning** — collects `TODO` / `FIXME` comments from the compose files into a TODO widget tile.
+-  **Variable interpolation** — `${VAR}` and `.env` files are resolved like Compose does, so variable-driven ports still yield working links.
 -  **Live reload** — file watcher rebuilds on create / change / delete.
 -  **Minimalist mosaic UI** — circular tiles in a honeycomb on a black background, fully responsive.
 -  **REST API** for integration.
@@ -72,6 +73,27 @@ For every service the following fields are extracted:
 2. first published (host) port
 
 The port is combined with `APP_HOST`, e.g. `http://server.local:3000`.
+
+### Variables
+
+`${VAR}` references are substituted before the file is parsed, exactly as
+Compose does it, so a port written as a variable still produces a working URL.
+Values come from a `.env` file next to the compose file, overridden by the
+dashboard's own environment. Editing a `.env` rebuilds the dashboard just like
+editing a compose file.
+
+```yaml
+services:
+  app:
+    image: nginx
+    ports:
+      - "${APP_PORT:-8080}:80"   # .env, the environment, or the default
+```
+
+The full syntax is supported: `$VAR`, `${VAR}`, `${VAR:-default}`,
+`${VAR-default}`, `${VAR:+alt}`, `${VAR+alt}`, `${VAR:?msg}` and `$$` for a
+literal `$`. An unset variable resolves to an empty string and is logged as a
+warning.
 
 **Icon** — priority (all cached locally under `/icons`):
 1. `x-dasha-icon` (a word to search, or an explicit Iconify id like `simple-icons:grafana`)

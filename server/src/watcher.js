@@ -1,5 +1,7 @@
 // Watch the compose directory and trigger a (debounced) rebuild whenever a
-// compose file is created, changed or removed.
+// compose file — or a `.env` feeding its variables — is created, changed or
+// removed.
+import path from 'node:path';
 import chokidar from 'chokidar';
 import { config } from './config.js';
 import { createLogger } from './logger.js';
@@ -7,6 +9,12 @@ import { isComposeFile } from './scanner.js';
 import { rebuild } from './builder.js';
 
 const log = createLogger('watcher');
+
+// `.env` values are interpolated into compose files, so editing one changes the
+// resulting services just as editing the compose file would.
+function isWatched(filePath) {
+  return isComposeFile(filePath) || path.basename(filePath) === '.env';
+}
 
 let watcher = null;
 let debounce = null;
@@ -21,7 +29,7 @@ export function startWatcher() {
   });
 
   const onEvent = (event) => (filePath) => {
-    if (!isComposeFile(filePath)) return;
+    if (!isWatched(filePath)) return;
     log.info(`${event}: ${filePath}`);
     scheduleRebuild();
   };

@@ -21,9 +21,13 @@
   - [ ] Standard widget types that pull their data from HTTP endpoints.
   - [ ] Configure widgets via an environment variable.
   - [ ] For a container-scoped widget, configure it via `x-dasha-widget`.
-- [ ] **Compose variable interpolation** — resolve `${VAR}` / `.env` substitutions
+- [x] **Compose variable interpolation** — resolve `${VAR}` / `.env` substitutions
       when parsing compose files, in particular when a port is defined via a
       variable (e.g. `ports: - "${APP_PORT}:80"`), so URLs are built correctly.
+      Implemented in `server/src/interpolate.js`: full Compose syntax
+      (`${VAR:-default}`, `:+`, `:?`, `$$`), values from a sibling `.env`
+      overridden by the process environment, unset variables warned about, and
+      the watcher now rebuilds on `.env` changes too.
 - [x] **Apple Watch-like mosaic layout** — a unified honeycomb mosaic on a black
       background where app icons and widgets share the same round shape (minimalist,
       monochrome masked icons, status dots, hover labels).
