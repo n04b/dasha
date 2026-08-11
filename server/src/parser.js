@@ -147,10 +147,11 @@ function normalizePorts(ports) {
   for (const p of ports) {
     if (p == null) continue;
     if (typeof p === 'object') {
-      // Long syntax.
+      // Long syntax. `published` may be a range ("8000-8001"), so reuse the
+      // same range-aware parsing as the short syntax instead of Number().
       out.push({
-        published: p.published != null ? Number(p.published) : null,
-        target: p.target != null ? Number(p.target) : null,
+        published: p.published != null ? firstPort(p.published) : null,
+        target: p.target != null ? firstPort(p.target) : null,
         protocol: p.protocol || 'tcp',
       });
       continue;

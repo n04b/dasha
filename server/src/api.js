@@ -45,11 +45,18 @@ export function createApp() {
     res.json({ id: file.id, path: file.path, error: file.error, content: file.raw });
   });
 
-  // Force a rebuild.
+  // Force a rebuild. Express 4 does not catch rejections from async handlers,
+  // so a failed rebuild would leave the request hanging until the client gives
+  // up — catch it here and always answer.
   app.post('/api/reload', async (_req, res) => {
     log.info('manual reload requested');
-    await rebuild();
-    res.json({ ok: true, services: store.listServices().length, lastBuild: store.lastBuild });
+    try {
+      await rebuild();
+      res.json({ ok: true, services: store.listServices().length, lastBuild: store.lastBuild });
+    } catch (err) {
+      log.error('reload failed', err.stack || String(err));
+      res.status(500).json({ ok: false, error: 'rebuild failed' });
+    }
   });
 
   // Liveness/readiness endpoint for Docker HEALTHCHECK.

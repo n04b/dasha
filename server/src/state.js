@@ -21,7 +21,9 @@ class Store extends EventEmitter {
     this.services = new Map(
       services.map((s) => {
         const old = previous.get(s.id);
-        if (old) {
+        // Only carry the old result over while the service is still probeable;
+        // otherwise a service that lost its port would stay "online" forever.
+        if (old && s.checkUrl && old.checkUrl === s.checkUrl) {
           s.status = old.status;
           s.statusCode = old.statusCode;
           s.responseTime = old.responseTime;

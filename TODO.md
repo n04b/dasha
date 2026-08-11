@@ -39,24 +39,26 @@
 - [ ] `/api/services` and `/api/compose/:id` leak secrets — the full
       `environment` map and raw file contents are exposed to anyone who can
       reach the dashboard. Filter / mask sensitive values.
-- [ ] `/api/reload` can hang forever — Express 4 doesn't catch rejected
-      promises in async handlers. Add a catch so the request always resolves.
-- [ ] Stale health status — a service that loses its `checkUrl` keeps showing
-      `online` forever because `replaceAll` copies the old status across. Reset
-      to `no-url` when there's nothing to probe.
-- [ ] Health-check passes can overlap — if one pass runs longer than
-      `checkInterval` the next one starts anyway, doubling probe load. Add a
-      re-entrancy guard.
-- [ ] HTTP 404/500 are reported as `online` — the checker only distinguishes
-      thrown errors vs. timeouts, ignoring the status code.
+- [x] `/api/reload` can hang forever — Express 4 doesn't catch rejected
+      promises in async handlers. Fixed: the handler try/catches and answers 500
+      on a failed rebuild.
+- [x] Stale health status — a service that loses its `checkUrl` keeps showing
+      `online` forever because `replaceAll` copies the old status across. Fixed:
+      the previous result is only carried over while `checkUrl` is unchanged.
+- [x] Health-check passes can overlap — if one pass runs longer than
+      `checkInterval` the next one starts anyway, doubling probe load. Fixed
+      with a re-entrancy guard that skips the tick.
+- [x] HTTP 5xx was reported as `online` — fixed: a 5xx response now maps to
+      `offline`. 4xx deliberately stays `online` (an API-only service returns
+      404 at `/`, and 401/403 still prove something is listening).
 - [ ] Icon resolution is sequential and unbounded in time — 2 network calls per
       service × up to `healthTimeout` each; a down Iconify API grinds every
       rebuild. Add concurrency limits / timeouts / fallback short-circuit.
-- [ ] Long-syntax port ranges (`published: "8000-8001"`) yield `NaN` in the
-      parser; short syntax handles ranges but long doesn't.
-- [ ] Web: dead error path in `ComposeModal` — `getJson` throws before an error
-      body is set, so `file.error` is never truthy and errors render as file
-      content with the misleading path `"error"`.
+- [x] Long-syntax port ranges (`published: "8000-8001"`) yield `NaN` in the
+      parser; short syntax handles ranges but long doesn't. Fixed: both paths
+      now use the same range-aware `firstPort`.
+- [x] ~~Web: dead error path in `ComposeModal`~~ — obsolete: the compose viewer
+      was removed in the mosaic redesign, so the component no longer exists.
 - [ ] Web: no timeout/abort on `fetch` — a hanging `/api/services` leaves the
       UI on "Loading…" forever and out-of-order responses can clobber newer
       data.

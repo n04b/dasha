@@ -7,6 +7,7 @@ import { store } from './state.js';
 const log = createLogger('health');
 
 let timer = null;
+let passRunning = false;
 
 export function startHealthChecks() {
   const intervalMs = Math.max(1, config.checkInterval) * 1000;
@@ -23,8 +24,18 @@ export function stopHealthChecks() {
 }
 
 async function runPass() {
-  const services = store.listServices().filter((s) => s.checkUrl);
-  await Promise.all(services.map(checkService));
+  // A slow pass must not overlap with the next tick, or probe load doubles.
+  if (passRunning) {
+    log.debug('previous health pass still running, skipping this tick');
+    return;
+  }
+  passRunning = true;
+  try {
+    const services = store.listServices().filter((s) => s.checkUrl);
+    await Promise.all(services.map(checkService));
+  } finally {
+    passRunning = false;
+  }
 }
 
 async function checkService(svc) {
@@ -40,8 +51,11 @@ async function checkService(svc) {
       signal: controller.signal,
       headers: { 'user-agent': 'compose-dashboard/health' },
     });
+    // A 5xx means the service answered but is broken, so it is not "online".
+    // 4xx stays online on purpose: an API that only serves /api legitimately
+    // returns 404 at the root, and 401/403 still prove something is listening.
     patch = {
-      status: 'online',
+      status: res.status >= 500 ? 'offline' : 'online',
       statusCode: res.status,
       responseTime: Date.now() - started,
       lastCheck: new Date().toISOString(),
