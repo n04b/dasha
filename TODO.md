@@ -36,9 +36,12 @@
       Fixed: health checks now probe `CHECK_HOST` (e.g. `host.docker.internal`)
       separately from the `APP_HOST` used for card links, so probes reach the
       host where ports are published instead of the container's own loopback.
-- [ ] `/api/services` and `/api/compose/:id` leak secrets — the full
+- [x] `/api/services` and `/api/compose/:id` leak secrets — the full
       `environment` map and raw file contents are exposed to anyone who can
-      reach the dashboard. Filter / mask sensitive values.
+      reach the dashboard. Fixed in `server/src/redact.js`: secret-looking keys
+      (password/token/secret/api-key/…) are masked in `environment`, `labels`
+      and the raw compose text, as are credentials embedded in URLs. Comments,
+      structure and line numbers are preserved.
 - [x] `/api/reload` can hang forever — Express 4 doesn't catch rejected
       promises in async handlers. Fixed: the handler try/catches and answers 500
       on a failed rebuild.
