@@ -69,8 +69,9 @@
       data. Fixed: every request aborts after 10s, a monotonic request id
       discards superseded responses, and in-flight requests are aborted on
       unmount.
-- [ ] Web: modal lacks `role="dialog"`, `aria-modal`, accessible name, focus
-      trap, and focus restore on close.
+- [x] Web: modal lacks `role="dialog"`, `aria-modal`, accessible name, focus
+      trap, and focus restore on close. Fixed: all four, verified with the
+      keyboard (Tab stays inside, Escape returns focus to the TODO tile).
 - [ ] `parseComposeFile`/`todos` could false-positive on `#` inside a value
       without leading whitespace (a `#` in the middle of a line isn't a YAML
       comment start).

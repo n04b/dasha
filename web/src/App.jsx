@@ -153,10 +153,41 @@ function TodoTile({ count, style, onClick }) {
 }
 
 function TodoModal({ todos, onClose }) {
+  const dialogRef = useRef(null);
+
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose();
+    // Remember what had focus so it can be restored when the dialog closes.
+    const previouslyFocused = document.activeElement;
+    dialogRef.current?.focus();
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      // Keep Tab inside the dialog.
+      const focusable = dialogRef.current?.querySelectorAll(
+        'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || active === dialogRef.current)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      previouslyFocused?.focus?.();
+    };
   }, [onClose]);
 
   const groups = useMemo(() => {
@@ -170,9 +201,17 @@ function TodoModal({ todos, onClose }) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="todo-modal-title"
+        tabIndex={-1}
+        ref={dialogRef}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-head">
-          <span className="modal-title">TODO / FIXME · {todos.length}</span>
+          <span className="modal-title" id="todo-modal-title">TODO / FIXME · {todos.length}</span>
           <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
         </div>
         <div className="modal-body">
