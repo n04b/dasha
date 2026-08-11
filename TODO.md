@@ -64,9 +64,11 @@
       now use the same range-aware `firstPort`.
 - [x] ~~Web: dead error path in `ComposeModal`~~ — obsolete: the compose viewer
       was removed in the mosaic redesign, so the component no longer exists.
-- [ ] Web: no timeout/abort on `fetch` — a hanging `/api/services` leaves the
+- [x] Web: no timeout/abort on `fetch` — a hanging `/api/services` leaves the
       UI on "Loading…" forever and out-of-order responses can clobber newer
-      data.
+      data. Fixed: every request aborts after 10s, a monotonic request id
+      discards superseded responses, and in-flight requests are aborted on
+      unmount.
 - [ ] Web: modal lacks `role="dialog"`, `aria-modal`, accessible name, focus
       trap, and focus restore on close.
 - [ ] `parseComposeFile`/`todos` could false-positive on `#` inside a value

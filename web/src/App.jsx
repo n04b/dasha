@@ -8,10 +8,26 @@ const STATUS_META = {
   'no-url': { label: 'No URL', cls: 'nourl' },
 };
 
-async function getJson(url, opts) {
-  const res = await fetch(url, opts);
-  if (!res.ok) throw new Error(`${url} -> ${res.status}`);
-  return res.json();
+const REQUEST_TIMEOUT = 10000;
+
+// fetch() never times out on its own, so a hung server would leave the UI
+// stuck on "Loading…" forever. Abort every request after REQUEST_TIMEOUT.
+async function getJson(url, { signal } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new Error('timeout')), REQUEST_TIMEOUT);
+  const onAbort = () => controller.abort(signal.reason);
+  signal?.addEventListener('abort', onAbort, { once: true });
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error(`${url} -> ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    if (err.name === 'AbortError') throw Object.assign(new Error('request timed out'), { name: 'AbortError' });
+    throw err;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
+  }
 }
 
 export default function App() {
@@ -21,27 +37,40 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [todosOpen, setTodosOpen] = useState(false);
 
-  const load = useCallback(async () => {
+  // Monotonic request id: a slow response must never overwrite a newer one.
+  const latestRequest = useRef(0);
+
+  const load = useCallback(async (signal) => {
+    const requestId = (latestRequest.current += 1);
     try {
-      const json = await getJson('/api/services');
+      const json = await getJson('/api/services', { signal });
+      if (requestId !== latestRequest.current) return; // superseded, discard
       setData(json);
       setError(null);
     } catch (e) {
+      if (signal?.aborted) return; // unmounted, not an error worth showing
+      if (requestId !== latestRequest.current) return;
       setError(e.message);
     } finally {
-      setLoading(false);
+      if (requestId === latestRequest.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    getJson('/api/config').then(setCfg).catch(() => {});
-    load();
+    const ac = new AbortController();
+    getJson('/api/config', { signal: ac.signal }).then(setCfg).catch(() => {});
+    load(ac.signal);
+    return () => ac.abort();
   }, [load]);
 
   useEffect(() => {
     const ms = Math.max(5, cfg.checkInterval || 30) * 1000;
-    const t = setInterval(load, ms);
-    return () => clearInterval(t);
+    const ac = new AbortController();
+    const t = setInterval(() => load(ac.signal), ms);
+    return () => {
+      clearInterval(t);
+      ac.abort();
+    };
   }, [cfg.checkInterval, load]);
 
   // Only services with a resolvable URL are shown.
