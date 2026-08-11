@@ -36,9 +36,12 @@
       Fixed: health checks now probe `CHECK_HOST` (e.g. `host.docker.internal`)
       separately from the `APP_HOST` used for card links, so probes reach the
       host where ports are published instead of the container's own loopback.
-- [ ] `/api/services` and `/api/compose/:id` leak secrets — the full
+- [x] `/api/services` and `/api/compose/:id` leak secrets — the full
       `environment` map and raw file contents are exposed to anyone who can
-      reach the dashboard. Filter / mask sensitive values.
+      reach the dashboard. Fixed in `server/src/redact.js`: secret-looking keys
+      (password/token/secret/api-key/…) are masked in `environment`, `labels`
+      and the raw compose text, as are credentials embedded in URLs. Comments,
+      structure and line numbers are preserved.
 - [x] `/api/reload` can hang forever — Express 4 doesn't catch rejected
       promises in async handlers. Fixed: the handler try/catches and answers 500
       on a failed rebuild.
@@ -51,19 +54,26 @@
 - [x] HTTP 5xx was reported as `online` — fixed: a 5xx response now maps to
       `offline`. 4xx deliberately stays `online` (an API-only service returns
       404 at `/`, and 401/403 still prove something is listening).
-- [ ] Icon resolution is sequential and unbounded in time — 2 network calls per
+- [x] Icon resolution is sequential and unbounded in time — 2 network calls per
       service × up to `healthTimeout` each; a down Iconify API grinds every
-      rebuild. Add concurrency limits / timeouts / fallback short-circuit.
+      rebuild. Fixed: lookups run `ICON_CONCURRENCY` at a time, use their own
+      shorter `ICON_TIMEOUT`, and a circuit breaker pauses calls for 60s after
+      3 consecutive failures (services fall back to the default icon).
 - [x] Long-syntax port ranges (`published: "8000-8001"`) yield `NaN` in the
       parser; short syntax handles ranges but long doesn't. Fixed: both paths
       now use the same range-aware `firstPort`.
 - [x] ~~Web: dead error path in `ComposeModal`~~ — obsolete: the compose viewer
       was removed in the mosaic redesign, so the component no longer exists.
-- [ ] Web: no timeout/abort on `fetch` — a hanging `/api/services` leaves the
+- [x] Web: no timeout/abort on `fetch` — a hanging `/api/services` leaves the
       UI on "Loading…" forever and out-of-order responses can clobber newer
-      data.
-- [ ] Web: modal lacks `role="dialog"`, `aria-modal`, accessible name, focus
-      trap, and focus restore on close.
-- [ ] `parseComposeFile`/`todos` could false-positive on `#` inside a value
+      data. Fixed: every request aborts after 10s, a monotonic request id
+      discards superseded responses, and in-flight requests are aborted on
+      unmount.
+- [x] Web: modal lacks `role="dialog"`, `aria-modal`, accessible name, focus
+      trap, and focus restore on close. Fixed: all four, verified with the
+      keyboard (Tab stays inside, Escape returns focus to the TODO tile).
+- [x] `parseComposeFile`/`todos` could false-positive on `#` inside a value
       without leading whitespace (a `#` in the middle of a line isn't a YAML
-      comment start).
+      comment start). Fixed: YAML scanning now requires the `#` to start the
+      line or follow whitespace, so URL fragments and values like `v1#x` are
+      no longer read as comments.

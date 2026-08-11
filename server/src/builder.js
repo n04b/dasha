@@ -60,7 +60,6 @@ async function doRebuild() {
       }
       const url = resolveUrl(svc);
       const checkUrl = resolveCheckUrl(svc);
-      const icon = await resolveIcon(iconCandidates(svc));
       services.push({
         id: `${svc.fileId}:${svc.name}`,
         fileId: svc.fileId,
@@ -71,7 +70,9 @@ async function doRebuild() {
         containerName: svc.containerName,
         url,
         checkUrl,
-        icon,
+        // Filled in below, in parallel — icon lookups hit the network.
+        icon: null,
+        iconCandidates: iconCandidates(svc),
         labels: svc.labels,
         environment: svc.environment,
         ports: svc.ports,
@@ -85,10 +86,28 @@ async function doRebuild() {
     }
   }
 
+  await resolveIcons(services);
+
   store.replaceAll(files, services, todos);
   log.info(
     `rebuild complete: ${files.length} file(s), ${services.length} service(s), ${todos.length} TODO(s) in ${Date.now() - started}ms`,
   );
+}
+
+// Resolve every service icon with a bounded number of parallel lookups, so a
+// slow Iconify API costs one timeout per batch instead of one per service.
+async function resolveIcons(services) {
+  const limit = Math.max(1, config.iconConcurrency);
+  let next = 0;
+  const worker = async () => {
+    while (next < services.length) {
+      const svc = services[next];
+      next += 1;
+      svc.icon = await resolveIcon(svc.iconCandidates);
+      delete svc.iconCandidates; // internal detail, not part of the API payload
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, services.length) }, worker));
 }
 
 // A service is hidden when its service key, container name or image base name

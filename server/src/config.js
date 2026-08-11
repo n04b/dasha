@@ -37,6 +37,14 @@ export const config = {
   // Iconify HTTP API base.
   iconifyApi: process.env.ICONIFY_API || 'https://api.iconify.design',
 
+  // Per-request timeout for Iconify lookups, in milliseconds. Kept separate
+  // from (and shorter than) healthTimeout: icons are cosmetic and must never
+  // hold up a rebuild.
+  iconTimeout: int(process.env.ICON_TIMEOUT, 3000),
+
+  // How many icons to resolve in parallel during a rebuild.
+  iconConcurrency: int(process.env.ICON_CONCURRENCY, 6),
+
   // Comma-separated service / image names (case-insensitive) hidden from the
   // dashboard. Defaults to hiding the dashboard's own service ("dasha") so it
   // doesn't show a card for itself.

@@ -7,6 +7,7 @@ import { createLogger } from './logger.js';
 import { store } from './state.js';
 import { rebuild } from './builder.js';
 import { FALLBACK_SVG } from './icons.js';
+import { redactMap, redactComposeText } from './redact.js';
 
 const log = createLogger('api');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -28,21 +29,32 @@ export function createApp() {
     });
   });
 
-  // All discovered services (without the noisy raw compose payload).
+  // All discovered services. Secret-looking environment/label values are masked
+  // — compose files routinely hold passwords and anyone who can reach the
+  // dashboard can call this endpoint.
   app.get('/api/services', (_req, res) => {
     res.json({
       lastBuild: store.lastBuild,
-      services: store.listServices(),
+      services: store.listServices().map((s) => ({
+        ...s,
+        environment: redactMap(s.environment),
+        labels: redactMap(s.labels),
+      })),
       todos: store.todos,
       files: store.listFiles().map(({ id, path: p, error }) => ({ id, path: p, error })),
     });
   });
 
-  // Raw compose file content by id.
+  // Compose file content by id, with secret values masked.
   app.get('/api/compose/:id', (req, res) => {
     const file = store.getFile(req.params.id);
     if (!file) return res.status(404).json({ error: 'not found' });
-    res.json({ id: file.id, path: file.path, error: file.error, content: file.raw });
+    res.json({
+      id: file.id,
+      path: file.path,
+      error: file.error,
+      content: redactComposeText(file.raw),
+    });
   });
 
   // Force a rebuild. Express 4 does not catch rejections from async handlers,
