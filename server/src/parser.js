@@ -120,8 +120,8 @@ function normalizeService(name, def, fileId, filePath, range) {
     range,
     image: def.image ?? null,
     containerName: def.container_name ?? null,
-    labels: normalizeLabels(def.labels),
-    environment: normalizeEnv(def.environment),
+    labels: keyValueMap(def.labels),
+    environment: keyValueMap(def.environment),
     ports: normalizePorts(def.ports),
     networks: normalizeNetworks(def.networks),
     // Dashboard extensions (x-dasha-* keys on the service).
@@ -133,39 +133,21 @@ function normalizeService(name, def, fileId, filePath, range) {
   };
 }
 
-// Labels may be a map or a list of "key=value" strings.
-function normalizeLabels(labels) {
-  if (!labels) return {};
-  if (Array.isArray(labels)) {
+// Both `labels` and `environment` may be written either as a map or as a list
+// of "KEY=value" strings; normalize both shapes to a plain string→string map.
+function keyValueMap(value) {
+  if (!value) return {};
+  if (Array.isArray(value)) {
     const out = {};
-    for (const item of labels) {
+    for (const item of value) {
       const [k, ...rest] = String(item).split('=');
       out[k] = rest.join('=');
     }
     return out;
   }
-  if (typeof labels === 'object') {
+  if (typeof value === 'object') {
     const out = {};
-    for (const [k, v] of Object.entries(labels)) out[k] = v == null ? '' : String(v);
-    return out;
-  }
-  return {};
-}
-
-// Environment may be a map or a list of "KEY=value" strings.
-function normalizeEnv(env) {
-  if (!env) return {};
-  if (Array.isArray(env)) {
-    const out = {};
-    for (const item of env) {
-      const [k, ...rest] = String(item).split('=');
-      out[k] = rest.join('=');
-    }
-    return out;
-  }
-  if (typeof env === 'object') {
-    const out = {};
-    for (const [k, v] of Object.entries(env)) out[k] = v == null ? '' : String(v);
+    for (const [k, v] of Object.entries(value)) out[k] = v == null ? '' : String(v);
     return out;
   }
   return {};

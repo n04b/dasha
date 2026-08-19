@@ -3,24 +3,81 @@
 // The dashboard parses compose files that routinely contain passwords, tokens
 // and API keys. Anyone who can reach the dashboard can call the REST API, so
 // values are masked here rather than shipped verbatim.
+//
+// A key-name denylist alone is fail-open: a secret under an unrecognised key
+// (e.g. `ADMIN_PW`, `MY_APP_MASTER=…`) would leak. So masking triggers on
+// EITHER a sensitive-looking key OR a secret-looking value (a long, random,
+// high-entropy token). Known-safe keys (`*_FILE`, `*_PATH`, `AUTH_METHOD`, …)
+// opt out of both checks, since their values are paths/enums we want to show.
 
 export const MASK = '••••••';
 
 // Key names whose value is treated as a secret.
-const SENSITIVE_KEY = /(pass|passwd|password|secret|token|api[-_]?key|access[-_]?key|private[-_]?key|credential|auth|salt|cipher|encryption|dsn|conn(ection)?[-_]?string)/i;
+const SENSITIVE_KEY = /(pass|passwd|password|pwd|pw\b|secret|token|api[-_]?key|access[-_]?key|private[-_]?key|credential|auth|salt|cipher|encryption|dsn|conn(ection)?[-_]?string)/i;
 
-// Keys that merely *look* sensitive but are safe and useful to show.
+// Keys that merely *look* sensitive but are safe and useful to show. These opt
+// out of value-based masking too — their values are paths/enums, not secrets.
 const ALLOWED_KEY = /^(.*_)?(auth_?(enabled|method|type|mode|url|host|port|provider)|password_?(file|path)|secret_?(file|path)|token_?(file|path)|.*_file|.*_path)$/i;
 
 // `scheme://user:password@host` — credentials embedded in a URL.
 const URL_CREDENTIALS = /\b([a-z][a-z0-9+.-]*:\/\/[^\s:/@]+):([^\s@/]+)@/gi;
 
-/** True when a key's value should be masked. */
+/** True for keys explicitly considered safe to show verbatim. */
+export function isAllowedKey(key) {
+  return ALLOWED_KEY.test(String(key || ''));
+}
+
+/** True when a key's *name* marks its value as a secret. */
 export function isSensitiveKey(key) {
   const k = String(key || '');
   if (!k) return false;
-  if (ALLOWED_KEY.test(k)) return false;
+  if (isAllowedKey(k)) return false;
   return SENSITIVE_KEY.test(k);
+}
+
+// Shannon entropy (bits per character) of a string — high for random tokens,
+// low for words and structured text.
+function entropy(s) {
+  const freq = new Map();
+  for (const ch of s) freq.set(ch, (freq.get(ch) || 0) + 1);
+  let bits = 0;
+  for (const n of freq.values()) {
+    const p = n / s.length;
+    bits -= p * Math.log2(p);
+  }
+  return bits;
+}
+
+// Number of distinct character classes present (lower/upper/digit/symbol).
+function charClasses(s) {
+  return [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((re) => re.test(s)).length;
+}
+
+/**
+ * True when a value looks like a credential regardless of its key: a JWT, a
+ * long hex digest, or a long, mixed, high-entropy token. Deliberately
+ * conservative — short values, words, and anything with whitespace (paths,
+ * sentences, hostnames) are left visible so the dashboard stays useful.
+ */
+export function looksLikeSecretValue(value) {
+  const v = String(value ?? '').trim();
+  if (v.length < 16 || /\s/.test(v)) return false;
+  // JWT: three base64url segments.
+  if (/^ey[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}\.[A-Za-z0-9_-]{6,}$/.test(v)) return true;
+  // Long hex digest (SHA/API hash).
+  if (/^[0-9a-f]{32,}$/i.test(v)) return true;
+  // Long, token-charset string that is random enough and mixes character
+  // classes — rules out URLs (contain `:` `/`) and plain words (low entropy).
+  if (v.length >= 20 && /^[A-Za-z0-9+/=_.-]+$/.test(v) && charClasses(v) >= 3 && entropy(v) >= 3.5) {
+    return true;
+  }
+  return false;
+}
+
+/** True when a (key, value) pair should be masked. */
+export function shouldMask(key, value) {
+  if (isAllowedKey(key)) return false;
+  return SENSITIVE_KEY.test(String(key || '')) || looksLikeSecretValue(value);
 }
 
 /** Mask a value, keeping empty values empty so the UI can tell them apart. */
@@ -34,7 +91,7 @@ export function redactMap(map) {
   if (!map || typeof map !== 'object') return {};
   const out = {};
   for (const [k, v] of Object.entries(map)) {
-    out[k] = isSensitiveKey(k) ? maskValue(v) : redactUrlCredentials(String(v ?? ''));
+    out[k] = shouldMask(k, v) ? maskValue(v) : redactUrlCredentials(String(v ?? ''));
   }
   return out;
 }
@@ -73,7 +130,7 @@ function redactLine(line) {
   if (listForm) {
     const [, indent, key, eq, value] = listForm;
     const { body, comment } = splitTrailingComment(value);
-    if (isSensitiveKey(key)) return `${indent}${key}${eq}${maskValue(body.trim())}${comment}`;
+    if (shouldMask(key, body.trim())) return `${indent}${key}${eq}${maskValue(body.trim())}${comment}`;
     return `${indent}${key}${eq}${redactUrlCredentials(body)}${comment}`;
   }
 
@@ -83,7 +140,7 @@ function redactLine(line) {
     const [, indent, key, sep, value] = mapForm;
     const { body, comment } = splitTrailingComment(value);
     if (body.trim() === '') return line; // a nested block, nothing to mask
-    if (isSensitiveKey(key)) return `${indent}${key}${sep}${maskValue(body.trim())}${comment}`;
+    if (shouldMask(key, body.trim())) return `${indent}${key}${sep}${maskValue(body.trim())}${comment}`;
     return `${indent}${key}${sep}${redactUrlCredentials(body)}${comment}`;
   }
 

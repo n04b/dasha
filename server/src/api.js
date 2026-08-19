@@ -2,19 +2,20 @@
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { config } from './config.js';
+import { config as defaultConfig } from './config.js';
 import { createLogger } from './logger.js';
-import { store } from './state.js';
-import { rebuild } from './builder.js';
 import { FALLBACK_SVG } from './icons.js';
 import { redactMap, redactComposeText } from './redact.js';
 
-const log = createLogger('api');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // server/src -> project root -> web/dist
 const WEB_DIST = path.resolve(__dirname, '../../web/dist');
 
-export function createApp() {
+/**
+ * Build the Express app. The store, the rebuild trigger and config are injected
+ * so the router owns no global state and can be exercised in isolation.
+ */
+export function createApp({ store, rebuild, config = defaultConfig, log = createLogger('api') }) {
   const app = express();
   app.disable('x-powered-by');
 

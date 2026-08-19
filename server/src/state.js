@@ -55,4 +55,8 @@ class Store extends EventEmitter {
   }
 }
 
-export const store = new Store();
+// Each call returns an independent, empty store — the composition root creates
+// the one the app uses; tests create throwaway ones.
+export function createStore() {
+  return new Store();
+}

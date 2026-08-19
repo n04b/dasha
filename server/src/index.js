@@ -1,10 +1,13 @@
-// Entry point: wire everything together, start listening, handle shutdown.
+// Composition root: construct every component, inject their dependencies, wire
+// them together, start listening and handle shutdown. This is the one place
+// that reads the real environment and owns the singletons.
 import { config } from './config.js';
 import { createLogger } from './logger.js';
-import { ensureIconsDir } from './icons.js';
-import { rebuild } from './builder.js';
-import { startHealthChecks, stopHealthChecks } from './health.js';
-import { startWatcher, stopWatcher } from './watcher.js';
+import { createStore } from './state.js';
+import { createIcons } from './icons.js';
+import { createBuilder } from './builder.js';
+import { createHealthChecker } from './health.js';
+import { createWatcher } from './watcher.js';
 import { createApp } from './api.js';
 
 const log = createLogger('main');
@@ -18,12 +21,20 @@ async function main() {
     checkInterval: config.checkInterval,
   });
 
-  await ensureIconsDir();
-  await rebuild(); // initial scan before we start serving
-  startHealthChecks();
-  startWatcher();
+  // Build the object graph. Each component gets exactly the collaborators it
+  // needs; nothing reaches across modules for a shared singleton.
+  const store = createStore();
+  const icons = createIcons({ config, log: createLogger('icons') });
+  const builder = createBuilder({ store, icons, config, log: createLogger('builder') });
+  const health = createHealthChecker({ store, config, log: createLogger('health') });
+  const watcher = createWatcher({ rebuild: builder.rebuild, config, log: createLogger('watcher') });
 
-  const app = createApp();
+  await icons.ensureIconsDir();
+  await builder.rebuild(); // initial scan before we start serving
+  health.start();
+  watcher.start();
+
+  const app = createApp({ store, rebuild: builder.rebuild, config, log: createLogger('api') });
   const server = app.listen(config.port, () => {
     log.info(`listening on http://0.0.0.0:${config.port}`);
   });
@@ -41,8 +52,8 @@ async function main() {
     shuttingDown = true;
     log.info(`received ${signal}, shutting down gracefully`);
 
-    stopHealthChecks();
-    await stopWatcher().catch(() => {});
+    health.stop();
+    await watcher.stop().catch(() => {});
 
     const forced = setTimeout(() => {
       log.warn('forced shutdown after timeout');

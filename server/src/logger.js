@@ -2,9 +2,8 @@
 import { config } from './config.js';
 
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 };
-const threshold = LEVELS[config.logLevel] ?? LEVELS.info;
 
-function emit(level, scope, message, extra) {
+function emit(level, scope, message, extra, threshold) {
   if (LEVELS[level] < threshold) return;
   const ts = new Date().toISOString();
   const tag = scope ? `[${scope}]` : '';
@@ -17,11 +16,12 @@ function emit(level, scope, message, extra) {
   }
 }
 
-export function createLogger(scope) {
+export function createLogger(scope, level = config.logLevel) {
+  const threshold = LEVELS[level] ?? LEVELS.info;
   return {
-    debug: (msg, extra) => emit('debug', scope, msg, extra),
-    info: (msg, extra) => emit('info', scope, msg, extra),
-    warn: (msg, extra) => emit('warn', scope, msg, extra),
-    error: (msg, extra) => emit('error', scope, msg, extra),
+    debug: (msg, extra) => emit('debug', scope, msg, extra, threshold),
+    info: (msg, extra) => emit('info', scope, msg, extra, threshold),
+    warn: (msg, extra) => emit('warn', scope, msg, extra, threshold),
+    error: (msg, extra) => emit('error', scope, msg, extra, threshold),
   };
 }
