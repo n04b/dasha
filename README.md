@@ -27,6 +27,7 @@ compose files I already maintain, with zero manual bookkeeping, so I (well, actu
 -  **Variable interpolation** — `${VAR}` and `.env` files are resolved like Compose does, so variable-driven ports still yield working links.
 -  **Live reload** — file watcher rebuilds on create / change / delete.
 -  **Minimalist mosaic UI** — circular tiles in a honeycomb on a black background, fully responsive.
+-  **Drag to rearrange** — put tiles anywhere in the honeycomb, including free cells; remembered per browser.
 -  **REST API** for integration.
 -  **Hardened**: non-root, healthcheck, graceful shutdown, `read_only` root filesystem, multi-arch (arm64 + amd64).
 
@@ -117,6 +118,34 @@ services:
     ports:
       - "3000:3000"
 ```
+
+## Rearranging the mosaic
+
+Drag a tile wherever you want it in the honeycomb:
+
+- **onto another tile** — the two trade places;
+- **onto a free cell touching the mosaic** — the tile moves there and leaves a
+  hole behind, so you can spread the cluster out, group tiles, or grow it in any
+  direction;
+- **anywhere else** — the drop is refused and the tile goes home. Every tile has
+  to stay next to another one, or the mosaic would come apart.
+
+The rest of the mosaic stays exactly where it is either way. On a touch screen,
+press and hold a tile for a moment before dragging — a plain swipe still scrolls
+the page. A drag never opens the service: only a click does.
+
+The layout lives in the browser's `localStorage`, not on the server — the
+services themselves come from your compose files, so nothing about your setup
+has to change. It follows the profile, not the machine. Notes on what that
+means day to day:
+
+- Until you move something, the mosaic packs itself automatically and re-packs
+  as the window resizes. The first drag pins every tile down, and from then on
+  the arrangement is yours; it no longer re-packs on resize.
+- A service added to a compose file later takes the free cell nearest the middle
+  of the cluster, rather than reshuffling what you arranged.
+- To go back to the automatic layout, clear the site data for the dashboard (or
+  run `localStorage.removeItem('dasha.tile-layout.v2')` in the browser console).
 
 ## TODO / FIXME scanning
 

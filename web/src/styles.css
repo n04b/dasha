@@ -42,6 +42,10 @@ html, body {
 
 .tile {
   position: absolute;
+  /* Slots are transforms, not left/top: the browser can then slide tiles around
+     on the compositor instead of laying the mosaic out again every frame. */
+  left: 0;
+  top: 0;
   border-radius: 50%;
   background: radial-gradient(120% 120% at 50% 0%, #202227 0%, #131417 70%);
   border: 1px solid var(--tile-border);
@@ -52,16 +56,42 @@ html, body {
   color: inherit;
   cursor: pointer;
   padding: 0;
-  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s;
+  /* One transition covers both jobs: growing under the cursor, and gliding to
+     a new slot when a drag displaces the tile. The slight overshoot lets it
+     settle into place rather than stopping dead. */
+  transition: transform 0.26s cubic-bezier(0.34, 1.32, 0.64, 1), box-shadow 0.2s;
   will-change: transform;
+  /* A press on a tile is ours to interpret (drag vs click), never a selection
+     or the browser's native link/image drag. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  touch-action: manipulation;
 }
 .tile:hover,
 .tile:focus-visible {
-  transform: scale(1.16);
+  --tile-scale: 1.16;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 12px 30px rgba(0, 0, 0, 0.6);
   z-index: 5;
   outline: none;
 }
+
+/* Drag to reorder --------------------------------------------------------- */
+/* The tile in hand is positioned from the pointer, so it must not animate
+   towards anything — it just lifts off the mosaic and follows. Dropping it
+   restores the transition, which is what eases it into its slot. */
+.tile.is-dragging {
+  transition: box-shadow 0.2s;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 18px 40px rgba(0, 0, 0, 0.7);
+  z-index: 10;
+  cursor: grabbing;
+  touch-action: none;
+}
+.tile.is-offline.is-dragging {
+  box-shadow: 0 0 0 1px var(--offline), 0 18px 40px rgba(0, 0, 0, 0.7);
+}
+/* While one tile is in hand the others only slide out of the way — no hover. */
+.mosaic.is-dragging .tile:not(.is-dragging) { pointer-events: none; }
 
 /* Full-colour brand icon */
 .tile-img {
@@ -113,6 +143,8 @@ html, body {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+/* Mid-drag the pills would sit on top of the tiles being moved past. */
+.mosaic.is-dragging .tile-label { opacity: 0; }
 
 /* TODO widget tile */
 .tile-widget {
