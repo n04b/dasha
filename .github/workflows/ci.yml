@@ -1,9 +1,12 @@
 name: CI
 
-# Manual only: start it from Actions -> CI -> "Run workflow".
-# Pick the ref there — run from `main` to publish the `edge` tag, or from a
-# `v*` tag to publish the version tags and `latest`.
+# Releases run themselves: pushing a `v*` tag builds the image and publishes the
+# version tags plus `latest`. Everything else is manual — start it from
+# Actions -> CI -> "Run workflow" and pick the ref, e.g. `main` for `edge`.
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       push_image:
@@ -13,7 +16,9 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded manual runs, but never a release: half-pushing a
+  # multi-arch image would leave the tag broken on Docker Hub.
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   build:
@@ -46,10 +51,13 @@ jobs:
     name: Build & push image
     needs: build
     runs-on: ubuntu-latest
-    # Publish only when the run was started with "Build and push the Docker
-    # image" ticked, and only once DOCKERHUB_USERNAME is configured (repo
-    # Variable) — otherwise the login step would fail on a fresh clone/fork.
-    if: inputs.push_image && vars.DOCKERHUB_USERNAME != ''
+    # Always publish for a tag; for a manual run, only when "Build and push the
+    # Docker image" was ticked. Either way it needs DOCKERHUB_USERNAME (repo
+    # Variable) to be set — otherwise the login step would fail on a fresh
+    # clone/fork, so the job is skipped instead.
+    if: >-
+      (github.event_name == 'push' || inputs.push_image)
+      && vars.DOCKERHUB_USERNAME != ''
     steps:
       - uses: actions/checkout@v4
 

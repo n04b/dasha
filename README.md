@@ -237,6 +237,20 @@ COMPOSE_DIR=./examples ICONS_DIR=./.icons node server/src/index.js   # API on :1
 cd web && npm install && npm run dev                                 # UI on :5173
 ```
 
+### Releasing
+
+Pushing a `v*` tag builds the multi-arch image and publishes it to Docker Hub as
+the version tags (`1.2.3`, `1.2`) plus `latest`:
+
+```bash
+git tag v1.2.3 && git push origin v1.2.3
+```
+
+Any other build is started by hand from **Actions → CI → Run workflow**; run
+from `main` to publish `edge`. Both need the repo variable `DOCKERHUB_USERNAME`
+and the secret `DOCKERHUB_TOKEN` — without them the publish job is skipped and
+only the build checks run.
+
 ## License
 
 MIT
