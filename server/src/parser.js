@@ -129,6 +129,11 @@ function normalizeService(name, def, fileId, filePath, range) {
       name: def['x-dasha-name'] ?? null,
       icon: def['x-dasha-icon'] ?? null,
       port: def['x-dasha-port'] ?? null,
+      // Distinguishes an absent key (undefined) from `x-dasha-hide:` written
+      // with no value (null): someone who bothers to write the key means to
+      // hide the service, so a bare one counts as true. Reading the value is
+      // resolveHidden's job.
+      hide: def['x-dasha-hide'] !== undefined ? def['x-dasha-hide'] ?? true : null,
     },
   };
 }

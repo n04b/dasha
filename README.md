@@ -106,6 +106,22 @@ warning.
 3. image name
 4. container name
 
+**Hidden from the dashboard** — a service with `x-dasha-hide` gets no card:
+
+```yaml
+services:
+  redis:
+    image: redis:7-alpine     # infrastructure, nothing to click through to
+    ports:
+      - "6379:6379"
+    x-dasha-hide: true
+```
+
+The value is optional — a bare `x-dasha-hide:` hides the service too — and
+`false`, `no`, `off` and `0` turn it back off, so the key can stay in the file
+while the card is on. This is the per-service counterpart of `HIDE_SERVICES`,
+which hides by name across every compose file at once.
+
 ### Example with overrides
 
 ```yaml
@@ -117,6 +133,12 @@ services:
     x-dasha-port: 3000
     ports:
       - "3000:3000"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    x-dasha-hide: true
 ```
 
 ## Rearranging the mosaic
@@ -177,7 +199,7 @@ services:
 | `PORT`           | `1337`      | Port the dashboard listens on.                    |
 | `COMPOSE_DIR`    | `/compose`  | Root scanned for compose files (recursive).       |
 | `ICONS_DIR`      | `/icons`    | Local icon cache (mount as volume/tmpfs).         |
-| `HIDE_SERVICES`  | `dasha`     | Comma-separated names hidden from the dashboard (matched case-insensitively against service key, container name and image base name). Default hides the dashboard's own service. |
+| `HIDE_SERVICES`  | `dasha`     | Comma-separated names hidden from the dashboard (matched case-insensitively against service key, container name and image base name). Default hides the dashboard's own service. Per-service, use `x-dasha-hide` instead. |
 | `HEALTH_TIMEOUT` | `5000`      | Availability-check request timeout (ms).          |
 | `ICON_TIMEOUT`   | `3000`      | Iconify lookup timeout (ms).                      |
 | `ICON_CONCURRENCY` | `6`       | Parallel icon lookups per rebuild.                |

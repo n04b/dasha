@@ -80,6 +80,7 @@ services:
     x-dasha-name: "Grafana Metrics"      # display name
     x-dasha-icon: "simple-icons:grafana" # Iconify id or a search term
     x-dasha-port: 3000                   # port used for the link / probe
+    x-dasha-hide: true                   # leave this service off the dashboard
     ports:
       - "3000:3000"
 ```

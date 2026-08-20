@@ -10,6 +10,20 @@ export function resolveName(service) {
   return service.ext.name || service.name;
 }
 
+// Values that switch the hide flag back off. Anything else present on the key
+// hides the service: someone writing `x-dasha-hide: internal only` means it.
+const NOT_HIDDEN = ['false', 'no', 'off', '0', ''];
+
+/**
+ * Whether the service asked to be left out of the dashboard, via `x-dasha-hide`.
+ */
+export function resolveHidden(service) {
+  const value = service.ext.hide;
+  if (value == null) return false;
+  if (typeof value === 'boolean') return value;
+  return !NOT_HIDDEN.includes(String(value).trim().toLowerCase());
+}
+
 /**
  * Resolve the published port the card links to.
  * Priority: x-dasha-port -> first published (host) port. Null when neither

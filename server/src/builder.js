@@ -5,7 +5,15 @@ import { config as defaultConfig } from './config.js';
 import { createLogger } from './logger.js';
 import { findComposeFiles } from './scanner.js';
 import { parseComposeFile } from './parser.js';
-import { resolveName, resolveUrl, resolveCheckUrl, resolvePort, iconCandidates, imageBaseName } from './resolver.js';
+import {
+  resolveName,
+  resolveUrl,
+  resolveCheckUrl,
+  resolvePort,
+  resolveHidden,
+  iconCandidates,
+  imageBaseName,
+} from './resolver.js';
 import { scanComposeText } from './todos.js';
 
 /**
@@ -56,8 +64,9 @@ export function createBuilder({ store, icons, config = defaultConfig, log = crea
       todos.push(...fileTodos);
 
       for (const svc of parsed.services) {
-        if (isHiddenService(svc)) {
-          log.info(`hiding service ${svc.name} (matches HIDE_SERVICES)`);
+        const hidden = hiddenReason(svc);
+        if (hidden) {
+          log.info(`hiding service ${svc.name} (${hidden})`);
           continue;
         }
         const port = resolvePort(svc);
@@ -117,12 +126,14 @@ export function createBuilder({ store, icons, config = defaultConfig, log = crea
     await Promise.all(Array.from({ length: Math.min(limit, services.length) }, worker));
   }
 
-  // A service is hidden when its service key, container name or image base name
-  // matches one of the configured HIDE_SERVICES entries.
-  function isHiddenService(svc) {
+  // Why a service is being left out of the dashboard, or null if it isn't:
+  // either the compose file asked for it with `x-dasha-hide`, or its service
+  // key, container name or image base name matches a HIDE_SERVICES entry.
+  function hiddenReason(svc) {
+    if (resolveHidden(svc)) return 'x-dasha-hide';
     const image = imageBaseName(svc.image);
     const names = [svc.name, svc.containerName, image].filter(Boolean).map((n) => n.toLowerCase());
-    return names.some((n) => config.hideServices.includes(n));
+    return names.some((n) => config.hideServices.includes(n)) ? 'matches HIDE_SERVICES' : null;
   }
 
   return { rebuild };

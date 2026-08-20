@@ -20,3 +20,10 @@ services:
       - "9000:9000"
     labels:
       - "com.example.group=admin"
+
+  # Infrastructure with nothing to click through to: kept out of the dashboard.
+  redis:
+    image: redis:7-alpine
+    x-dasha-hide: true
+    ports:
+      - "6379:6379"
