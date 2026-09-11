@@ -25,6 +25,7 @@ export function createApp({ store, rebuild, config = defaultConfig, log = create
   app.get('/api/config', (_req, res) => {
     res.json({
       appHost: config.appHost,
+      healthChecks: config.healthChecks,
       checkInterval: config.checkInterval,
       lastBuild: store.lastBuild,
     });

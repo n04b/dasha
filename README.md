@@ -22,7 +22,7 @@ compose files I already maintain, with zero manual bookkeeping, so I (well, actu
 -  **Automatic scanning** — recursively finds `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, `compose.yaml`.
 -  **Zero-config dashboard** — cards are built straight from the compose files.
 -  **Local icon cache** — SVGs pulled from Iconify and stored in `/icons`.
--  **Availability checks** — periodic HTTP probes → `Online` / `Offline` / `Timeout`.
+-  **Availability checks** *(opt-in)* — periodic HTTP probes → `Online` / `Offline` / `Timeout`. Off by default; enable with `HEALTH_CHECKS=on` so the dashboard only reaches out to other containers when you ask it to.
 -  **TODO/FIXME scanning** — collects `TODO` / `FIXME` comments from the compose files into a TODO widget tile.
 -  **Variable interpolation** — `${VAR}` and `.env` files are resolved like Compose does, so variable-driven ports still yield working links.
 -  **Live reload** — file watcher rebuilds on create / change / delete.
@@ -194,8 +194,9 @@ services:
 | Variable         | Default     | Description                                       |
 | ---------------- | ----------- | ------------------------------------------------- |
 | `APP_HOST`       | `localhost` | Fallback host for the URLs in the API payload, and the default for `CHECK_HOST`. Tile links ignore it — they use the host from your browser's address bar. |
-| `CHECK_HOST`     | `APP_HOST`  | Host the availability checker probes. In a container set this to `host.docker.internal` (or the host IP). |
-| `CHECK_INTERVAL` | `30`        | Availability-check interval, in seconds.          |
+| `HEALTH_CHECKS`  | `off`       | Enable availability probing of services (`on`/`off`). Off by default — without it the dashboard never contacts the other containers, it only links to them. |
+| `CHECK_HOST`     | `APP_HOST`  | Host the availability checker probes. In a container set this to `host.docker.internal` (or the host IP). Only used when `HEALTH_CHECKS=on`. |
+| `CHECK_INTERVAL` | `30`        | Availability-check interval, in seconds. Only used when `HEALTH_CHECKS=on`. |
 | `PORT`           | `1337`      | Port the dashboard listens on.                    |
 | `COMPOSE_DIR`    | `/compose`  | Root scanned for compose files (recursive).       |
 | `ICONS_DIR`      | `/icons`    | Local icon cache (mount as volume/tmpfs).         |

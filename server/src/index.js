@@ -31,7 +31,10 @@ async function main() {
 
   await icons.ensureIconsDir();
   await builder.rebuild(); // initial scan before we start serving
-  health.start();
+  // Availability probing is opt-in: without it the dashboard never touches the
+  // other containers, it just links to them.
+  if (config.healthChecks) health.start();
+  else log.info('availability checks disabled (set HEALTH_CHECKS=on to enable)');
   watcher.start();
 
   const app = createApp({ store, rebuild: builder.rebuild, config, log: createLogger('api') });

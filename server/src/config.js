@@ -7,6 +7,11 @@ function int(value, fallback) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function bool(value, fallback) {
+  if (value == null || value === '') return fallback;
+  return /^(1|true|yes|on)$/i.test(String(value).trim());
+}
+
 /**
  * Build the runtime configuration from an environment map. Kept as a factory
  * (rather than reading `process.env` inline) so tests can construct isolated
@@ -25,7 +30,12 @@ export function loadConfig(env = process.env) {
     // hit the host where the ports are actually published.
     checkHost: env.CHECK_HOST || env.APP_HOST || 'localhost',
 
-    // Availability check interval, in seconds.
+    // Whether to probe services for availability at all. Off by default: the
+    // dashboard should not reach out to other containers unless asked, so a
+    // fresh install is a passive launcher until you opt in with HEALTH_CHECKS.
+    healthChecks: bool(env.HEALTH_CHECKS, false),
+
+    // Availability check interval, in seconds (only used when checks are on).
     checkInterval: int(env.CHECK_INTERVAL, 30),
 
     // HTTP port the dashboard listens on.

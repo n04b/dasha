@@ -113,7 +113,7 @@ export default function App() {
             onClickCapture: onTileClickCapture,
           };
           return tile.type === 'service' ? (
-            <ServiceTile key={tile.key} service={tile.service} {...dragProps} />
+            <ServiceTile key={tile.key} service={tile.service} showStatus={cfg.healthChecks} {...dragProps} />
           ) : (
             <TodoTile key={tile.key} count={tile.count} {...dragProps} onClick={() => setTodosOpen(true)} />
           );

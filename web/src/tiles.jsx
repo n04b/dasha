@@ -18,9 +18,12 @@ export function linkFor(service) {
   return service.url || '#'; // no published port: fall back to whatever the API gave
 }
 
-export function ServiceTile({ service, style, dragging, onPointerDown, onClickCapture }) {
+export function ServiceTile({ service, showStatus = true, style, dragging, onPointerDown, onClickCapture }) {
   const meta = STATUS_META[service.status] || STATUS_META.unknown;
-  const offline = service.status === 'offline';
+  // With availability checks off, a service has no status to speak of — don't
+  // mark it offline or show a perpetual "Checking…" in the tooltip.
+  const offline = showStatus && service.status === 'offline';
+  const title = showStatus ? `${service.name} · ${meta.label}` : service.name;
   const href = linkFor(service);
   // Full-colour icon sets keep their brand colours; monochrome sets are drawn
   // as a white silhouette so they stay visible on the black tile.
@@ -32,7 +35,7 @@ export function ServiceTile({ service, style, dragging, onPointerDown, onClickCa
       href={href}
       target="_blank"
       rel="noreferrer noopener"
-      title={`${service.name} · ${meta.label}`}
+      title={title}
       onPointerDown={onPointerDown}
       onClickCapture={onClickCapture}
       onDragStart={(e) => e.preventDefault()} // native link dragging fights ours
