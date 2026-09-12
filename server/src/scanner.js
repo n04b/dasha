@@ -1,6 +1,7 @@
 // Recursively find Docker Compose files under a root path.
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { config as defaultConfig } from './config.js';
 import { createLogger } from './logger.js';
 
 const log = createLogger('scanner');
@@ -12,13 +13,24 @@ const COMPOSE_NAMES = new Set([
   'compose.yaml',
 ]);
 
-// Directories we never want to descend into.
-const IGNORED_DIRS = new Set(['.git', 'node_modules', '.svn', '.hg']);
-
 const MAX_DEPTH = 12;
 
 export function isComposeFile(filePath) {
   return COMPOSE_NAMES.has(path.basename(filePath).toLowerCase());
+}
+
+/**
+ * Whether a directory name should never be descended into while scanning or
+ * watching. Hidden dirs (anything starting with `.` — `.git`, `.esphome`,
+ * `.storage`, …) are always skipped: they hold VCS internals, build caches and
+ * other users' private files, none of which contain compose files but all of
+ * which pile up file-watchers. `ignoreDirs` adds the data/volume dirs where
+ * bind-mounts accumulate thousands of files.
+ */
+export function isIgnoredDir(name, ignoreDirs = defaultConfig.ignoreDirs) {
+  if (!name || name === '.' || name === '..') return false;
+  if (name.startsWith('.')) return true;
+  return ignoreDirs.includes(name);
 }
 
 /**
@@ -57,7 +69,7 @@ async function walk(dir, depth, out) {
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (IGNORED_DIRS.has(entry.name)) continue;
+      if (isIgnoredDir(entry.name)) continue;
       await walk(full, depth + 1, out);
     } else if (entry.isFile() && isComposeFile(entry.name)) {
       out.push(full);

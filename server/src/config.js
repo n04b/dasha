@@ -69,6 +69,15 @@ export function loadConfig(env = process.env) {
       env.HIDE_SERVICES?.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean) ||
       ['dasha'],
 
+    // Directory names never descended into when scanning or watching for compose
+    // files. Bind-mount data lives next to compose files (e.g. `volumes/…`) and
+    // can hold tens of thousands of files — watching them exhausts the inotify
+    // limit (ENOSPC) and trips over other users' files (EACCES). Hidden dirs
+    // (any starting with `.`) are always ignored on top of this list.
+    ignoreDirs:
+      env.IGNORE_DIRS?.split(',').map((s) => s.trim()).filter(Boolean) ||
+      ['node_modules', '.git', '.svn', '.hg', 'volumes'],
+
     // Log verbosity: debug | info | warn | error
     logLevel: env.LOG_LEVEL || 'info',
   };

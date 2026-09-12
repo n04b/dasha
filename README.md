@@ -201,6 +201,7 @@ services:
 | `COMPOSE_DIR`    | `/compose`  | Root scanned for compose files (recursive).       |
 | `ICONS_DIR`      | `/icons`    | Local icon cache (mount as volume/tmpfs).         |
 | `HIDE_SERVICES`  | `dasha`     | Comma-separated names hidden from the dashboard (matched case-insensitively against service key, container name and image base name). Default hides the dashboard's own service. Per-service, use `x-dasha-hide` instead. |
+| `IGNORE_DIRS`    | `node_modules,.git,.svn,.hg,volumes` | Directory names never scanned or watched. Bind-mount data (e.g. `volumes/`) holds thousands of files that would exhaust the inotify watch limit (`ENOSPC`); hidden dirs (any starting with `.`) are always ignored on top of this. |
 | `HEALTH_TIMEOUT` | `5000`      | Availability-check request timeout (ms).          |
 | `ICON_TIMEOUT`   | `3000`      | Iconify lookup timeout (ms).                      |
 | `ICON_CONCURRENCY` | `6`       | Parallel icon lookups per rebuild.                |
