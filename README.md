@@ -4,10 +4,11 @@ A self-hosted dashboard that **automatically discovers services from your Docker
 Compose files** and renders them as a minimalist, Apple Watch-style honeycomb
 mosaic on a black background — no manual configuration required.
 
-Point it at a directory of compose projects; it scans them recursively, extracts
-each service, resolves an icon (cached locally from [Iconify](https://iconify.design)),
-builds a URL, and continuously checks whether the service is reachable. It rebuilds
-itself whenever the compose files change.
+Point it at a directory of compose projects; it scans them (one level deep by
+default, configurable via `SCAN_DEPTH`), extracts each service, resolves an icon
+(cached locally from [Iconify](https://iconify.design)), builds a URL, and —
+if you opt in — checks whether the service is reachable. It rebuilds itself
+whenever the compose files change.
 
 ## Why another dashboard?
 
@@ -19,7 +20,7 @@ compose files I already maintain, with zero manual bookkeeping, so I (well, actu
 
 ## Features
 
--  **Automatic scanning** — recursively finds `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, `compose.yaml`.
+-  **Automatic scanning** — finds `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, `compose.yaml` (one level deep by default; raise `SCAN_DEPTH` for nested layouts).
 -  **Zero-config dashboard** — cards are built straight from the compose files.
 -  **Local icon cache** — SVGs pulled from Iconify and stored in `/icons`.
 -  **Availability checks** *(opt-in)* — periodic HTTP probes → `Online` / `Offline` / `Timeout`. Off by default; enable with `HEALTH_CHECKS=on` so the dashboard only reaches out to other containers when you ask it to.
@@ -198,9 +199,10 @@ services:
 | `CHECK_HOST`     | `APP_HOST`  | Host the availability checker probes. In a container set this to `host.docker.internal` (or the host IP). Only used when `HEALTH_CHECKS=on`. |
 | `CHECK_INTERVAL` | `30`        | Availability-check interval, in seconds. Only used when `HEALTH_CHECKS=on`. |
 | `PORT`           | `1337`      | Port the dashboard listens on.                    |
-| `COMPOSE_DIR`    | `/compose`  | Root scanned for compose files (recursive).       |
+| `COMPOSE_DIR`    | `/compose`  | Root scanned for compose files (down to `SCAN_DEPTH` levels). May be a directory or a single compose file. |
 | `ICONS_DIR`      | `/icons`    | Local icon cache (mount as volume/tmpfs).         |
 | `HIDE_SERVICES`  | `dasha`     | Comma-separated names hidden from the dashboard (matched case-insensitively against service key, container name and image base name). Default hides the dashboard's own service. Per-service, use `x-dasha-hide` instead. |
+| `SCAN_DEPTH`     | `1`         | Directory levels below `COMPOSE_DIR` to scan and watch. The default `1` fits `COMPOSE_DIR/<project>/compose.yaml` and keeps discovery off deep data dirs; raise it for projects nested further, `0` = only files directly in the root. |
 | `IGNORE_DIRS`    | `node_modules,.git,.svn,.hg,volumes` | Directory names never scanned or watched. Bind-mount data (e.g. `volumes/`) holds thousands of files that would exhaust the inotify watch limit (`ENOSPC`); hidden dirs (any starting with `.`) are always ignored on top of this. |
 | `HEALTH_TIMEOUT` | `5000`      | Availability-check request timeout (ms).          |
 | `ICON_TIMEOUT`   | `3000`      | Iconify lookup timeout (ms).                      |

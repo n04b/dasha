@@ -69,6 +69,12 @@ export function loadConfig(env = process.env) {
       env.HIDE_SERVICES?.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean) ||
       ['dasha'],
 
+    // How many directory levels below COMPOSE_DIR to scan and watch. A compose
+    // dir laid out as `<root>/<project>/compose.yaml` only needs a couple of
+    // levels; a shallow limit keeps discovery off deep bind-mount data even
+    // before IGNORE_DIRS prunes it. 0 = only files directly in the root.
+    scanDepth: int(env.SCAN_DEPTH, 1),
+
     // Directory names never descended into when scanning or watching for compose
     // files. Bind-mount data lives next to compose files (e.g. `volumes/…`) and
     // can hold tens of thousands of files — watching them exhausts the inotify

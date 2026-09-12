@@ -13,8 +13,6 @@ const COMPOSE_NAMES = new Set([
   'compose.yaml',
 ]);
 
-const MAX_DEPTH = 12;
-
 export function isComposeFile(filePath) {
   return COMPOSE_NAMES.has(path.basename(filePath).toLowerCase());
 }
@@ -37,7 +35,7 @@ export function isIgnoredDir(name, ignoreDirs = defaultConfig.ignoreDirs) {
  * Return the absolute paths of every compose file under `root`.
  * `root` may itself be a single compose file.
  */
-export async function findComposeFiles(root) {
+export async function findComposeFiles(root, maxDepth = defaultConfig.scanDepth) {
   let stat;
   try {
     stat = await fs.stat(root);
@@ -51,14 +49,14 @@ export async function findComposeFiles(root) {
   }
 
   const found = [];
-  await walk(root, 0, found);
+  await walk(root, 0, found, maxDepth);
   log.info(`found ${found.length} compose file(s) under ${root}`);
   for (const f of found) log.debug(`  · ${f}`);
   return found.sort();
 }
 
-async function walk(dir, depth, out) {
-  if (depth > MAX_DEPTH) return;
+async function walk(dir, depth, out, maxDepth) {
+  if (depth > maxDepth) return;
   let entries;
   try {
     entries = await fs.readdir(dir, { withFileTypes: true });
@@ -70,7 +68,7 @@ async function walk(dir, depth, out) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       if (isIgnoredDir(entry.name)) continue;
-      await walk(full, depth + 1, out);
+      await walk(full, depth + 1, out, maxDepth);
     } else if (entry.isFile() && isComposeFile(entry.name)) {
       out.push(full);
     }

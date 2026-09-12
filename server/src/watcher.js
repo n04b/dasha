@@ -67,7 +67,7 @@ export function createWatcher({ rebuild, config = defaultConfig, log = createLog
       ignored: (p) => isIgnoredPath(p),
       ignoreInitial: true,
       persistent: true,
-      depth: 12,
+      depth: config.scanDepth,
       awaitWriteFinish: { stabilityThreshold: 300, pollInterval: 100 },
     });
 

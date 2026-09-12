@@ -45,7 +45,7 @@ export function createBuilder({ store, icons, config = defaultConfig, log = crea
 
   async function doRebuild() {
     const started = Date.now();
-    const paths = await findComposeFiles(config.composeDir);
+    const paths = await findComposeFiles(config.composeDir, config.scanDepth);
 
     const files = [];
     const services = [];
