@@ -10,7 +10,7 @@ import { config as defaultConfig } from './config.js';
 import { createLogger } from './logger.js';
 
 // Collections that tend to hold real service/brand logos, best first.
-const PREFERRED_PREFIXES = ['logos', 'simple-icons', 'skill-icons', 'devicon', 'mdi', 'cib'];
+const PREFERRED_PREFIXES = ['light', 'logos', 'simple-icons', 'skill-icons', 'devicon', 'mdi', 'cib'];
 
 const DEFAULT_ICON = 'default.svg';
 
