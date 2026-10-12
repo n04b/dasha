@@ -67,7 +67,7 @@ services:
 | Path       | Mode         | Purpose                                             |
 | ---------- | ------------ | --------------------------------------------------- |
 | `/compose` | read-only    | Your compose projects, scanned recursively.         |
-| `/icons`   | writable     | Cached SVG icons. Use a volume or `tmpfs:mode=1777`.|
+| `/icons`   | writable     | Cached icons. Use a volume or `tmpfs:mode=1777`.    |
 
 ## Per-service overrides
 
@@ -78,7 +78,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     x-dasha-name: "Grafana Metrics"      # display name
-    x-dasha-icon: "simple-icons:grafana" # Iconify id or a search term
+    x-dasha-icon: "simple-icons:grafana" # Iconify id, search term, image or data: URL
     x-dasha-port: 3000                   # port used for the link / probe
     x-dasha-hide: true                   # leave this service off the dashboard
     ports:
