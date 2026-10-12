@@ -33,6 +33,13 @@
       background where app icons and widgets share the same round shape (minimalist,
       monochrome masked icons, status dots, hover labels).
   - [ ] Free drag-to-reorder with a persisted layout.
+- [x] **Offline access & Tailscale fallback** — a service worker (emitted by a
+      small plugin in `web/vite.config.js` from `web/src/sw.js`) caches the app
+      shell, bundle and icons, never the API; the page pings `/api/ping` and,
+      when its own address is down, tries the `FALLBACK_HOST` URLs in order
+      (e.g. the MagicDNS name) and moves to the first where Dasha answers, or
+      shows the last known services and retries (`web/src/useConnection.js`,
+      `web/src/offline.js`).
 - [x] **Hide services without a URL** — don't render cards for services that have
       no resolvable URL (still returned by the API; just not shown).
 

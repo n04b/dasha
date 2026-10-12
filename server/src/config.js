@@ -13,6 +13,36 @@ function bool(value, fallback) {
 }
 
 /**
+ * Parse a comma- or space-separated list of fallback addresses into origins
+ * (`https://host[:port]`), keeping their order and dropping duplicates. Only
+ * http(s) URLs with no path, query, hash or credentials are accepted — the rest
+ * are returned as `rejected`, never handed to the browser to navigate to.
+ */
+export function parseFallbackUrls(value) {
+  const urls = [];
+  const rejected = [];
+  for (const raw of String(value ?? '').split(/[\s,]+/).filter(Boolean)) {
+    let url = null;
+    try {
+      url = new URL(raw);
+    } catch {
+      /* not a URL at all */
+    }
+    const ok =
+      url &&
+      /^https?:$/.test(url.protocol) &&
+      !url.username &&
+      !url.password &&
+      url.pathname === '/' &&
+      !url.search &&
+      !url.hash;
+    if (!ok) rejected.push(raw);
+    else if (!urls.includes(url.origin)) urls.push(url.origin);
+  }
+  return { urls, rejected };
+}
+
+/**
  * Build the runtime configuration from an environment map. Kept as a factory
  * (rather than reading `process.env` inline) so tests can construct isolated
  * configs and the composition root stays the single place that reads the real
@@ -83,6 +113,22 @@ export function loadConfig(env = process.env) {
     ignoreDirs:
       env.IGNORE_DIRS?.split(',').map((s) => s.trim()).filter(Boolean) ||
       ['node_modules', '.git', '.svn', '.hg', 'volumes'],
+
+    // Other addresses of this same server — typically its Tailscale MagicDNS
+    // name — as full URLs (`https://homeserver.tail1234.ts.net`). When the
+    // address the browser opened the dashboard on stops answering, it tries
+    // these in order and moves to the first one where the dashboard answers.
+    // The one it is on is skipped, so the list may name every address the
+    // server has (LAN included) and then works in both directions. Empty = none.
+    fallbackUrls: parseFallbackUrls(env.FALLBACK_HOST).urls,
+
+    // How long the browser waits for the server (or a fallback) to answer a
+    // reachability probe before it counts it as unreachable, in milliseconds.
+    connectTimeout: int(env.CONNECT_TIMEOUT, 3000),
+
+    // While neither address answers, how often the browser tries again, in
+    // seconds. It also retries whenever the network or the tab comes back.
+    reconnectInterval: int(env.RECONNECT_INTERVAL, 15),
 
     // Log verbosity: debug | info | warn | error
     logLevel: env.LOG_LEVEL || 'info',

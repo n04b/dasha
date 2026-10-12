@@ -28,7 +28,32 @@ export function createApp({ store, rebuild, config = defaultConfig, log = create
       healthChecks: config.healthChecks,
       checkInterval: config.checkInterval,
       lastBuild: store.lastBuild,
+      // Where the browser looks for this server, in order, when it can't reach
+      // it on the address it is on.
+      fallbackUrls: config.fallbackUrls,
+      connectTimeout: config.connectTimeout,
+      reconnectInterval: config.reconnectInterval,
     });
+  });
+
+  // Reachability probe for the browser: is the server there, and — asked from
+  // another origin — is the fallback address really this dashboard? It reveals
+  // nothing, so it answers any origin (CORS, plus the Private Network Access
+  // preflight Chromium may send before a request into a private network), and
+  // it must never be served from a cache.
+  const PING_HEADERS = { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' };
+  app.options('/api/ping', (_req, res) => {
+    res
+      .set({
+        ...PING_HEADERS,
+        'Access-Control-Allow-Methods': 'GET',
+        'Access-Control-Allow-Private-Network': 'true',
+        'Access-Control-Max-Age': '600',
+      })
+      .sendStatus(204);
+  });
+  app.get('/api/ping', (_req, res) => {
+    res.set(PING_HEADERS).json({ app: 'dasha' });
   });
 
   // All discovered services. Secret-looking environment/label values are masked
@@ -94,13 +119,17 @@ export function createApp({ store, rebuild, config = defaultConfig, log = create
 
   // Built React frontend. Asset filenames are content-hashed so they can be
   // cached for a long time; index.html must not be cached, or an upgraded
-  // container would keep serving a page that references the old bundle.
+  // container would keep serving a page that references the old bundle. The
+  // same goes for the service worker (an upgrade is noticed by its bytes
+  // changing) and the web app manifest.
   app.use(
     express.static(WEB_DIST, {
       index: 'index.html',
       maxAge: '1y',
       setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
+        if (/\.(html|webmanifest)$/.test(filePath) || path.basename(filePath) === 'sw.js') {
+          res.setHeader('Cache-Control', 'no-cache');
+        }
       },
     }),
   );

@@ -27,6 +27,10 @@ services:
       # service key / container name / image name). Default: hides "dasha" so
       # the dashboard doesn't show a card for itself.
       # HIDE_SERVICES: "dasha"
+      # Other addresses of this server — e.g. its Tailscale MagicDNS name — as
+      # full URLs. When the address the browser opened the dashboard on stops
+      # answering, it tries these in order and moves to the first that answers.
+      # FALLBACK_HOST: "https://homeserver.tail1234.ts.net,http://100.101.102.103:1337"
     # Makes host.docker.internal resolve to the Docker host on Linux too.
     extra_hosts:
       - "host.docker.internal:host-gateway"

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getJson } from './api.js';
 import { loadCells, loadOrder } from './layout.js';
+import { cacheConfig, cacheIcons, cacheServices, cachedConfig, cachedServices } from './offline.js';
+import { useConnection } from './useConnection.js';
 import { DRAG_SCALE } from './honeycomb.js';
 import { useHoneycomb } from './useHoneycomb.js';
 import { useTileReorder } from './useTileReorder.js';
@@ -9,7 +11,9 @@ import { TodoModal } from './TodoModal.jsx';
 
 export default function App() {
   const [data, setData] = useState({ services: [], files: [], todos: [], lastBuild: null });
-  const [cfg, setCfg] = useState({ checkInterval: 30 });
+  // The last config seen, until the server answers: it carries the fallback
+  // address, which matters most exactly when the server can't be reached.
+  const [cfg, setCfg] = useState(() => cachedConfig() || { checkInterval: 30 });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [todosOpen, setTodosOpen] = useState(false);
@@ -17,31 +21,69 @@ export default function App() {
   const [drag, setDrag] = useState(null); // { key, origin } of the tile in hand
   const order = useMemo(loadOrder, []);
 
+  const { status, checking, target, check, markOnline } = useConnection(cfg);
+  const offline = status === 'offline';
+
   // Monotonic request id: a slow response must never overwrite a newer one.
   const latestRequest = useRef(0);
+  // Whether `data` came from the server in this page's lifetime (vs. the cache).
+  const live = useRef(false);
 
   const load = useCallback(async (signal) => {
     const requestId = (latestRequest.current += 1);
     try {
       const json = await getJson('/api/services', { signal });
       if (requestId !== latestRequest.current) return; // superseded, discard
+      live.current = true;
       setData(json);
       setError(null);
+      markOnline();
+      cacheServices(json);
+      cacheIcons(json.services.map((s) => s.icon).filter(Boolean));
     } catch (e) {
       if (signal?.aborted) return; // unmounted, not an error worth showing
       if (requestId !== latestRequest.current) return;
       setError(e.message);
+      check(); // the server gone, or just this request? the probe tells
     } finally {
       if (requestId === latestRequest.current) setLoading(false);
+    }
+  }, [check, markOnline]);
+
+  const loadConfig = useCallback(async (signal) => {
+    try {
+      const json = await getJson('/api/config', { signal });
+      setCfg(json);
+      cacheConfig(json);
+    } catch {
+      /* keep the cached config */
     }
   }, []);
 
   useEffect(() => {
     const ac = new AbortController();
-    getJson('/api/config', { signal: ac.signal }).then(setCfg).catch(() => {});
+    loadConfig(ac.signal);
     load(ac.signal);
     return () => ac.abort();
-  }, [load]);
+  }, [load, loadConfig]);
+
+  // Back from an outage: refresh now rather than at the next tick.
+  const prevStatus = useRef(status);
+  useEffect(() => {
+    if (prevStatus.current === 'offline' && status === 'online') {
+      loadConfig();
+      load();
+    }
+    prevStatus.current = status;
+  }, [status, load, loadConfig]);
+
+  // The server can't be reached and nothing came from it yet: show the
+  // services as they were last seen rather than an empty screen.
+  useEffect(() => {
+    if (!offline || live.current) return;
+    const snapshot = cachedServices();
+    if (snapshot) setData(snapshot);
+  }, [offline]);
 
   useEffect(() => {
     const ms = Math.max(5, cfg.checkInterval || 30) * 1000;
@@ -84,11 +126,25 @@ export default function App() {
     setCells,
   });
 
+  // Offline, the last known statuses say nothing about now.
+  const showStatus = cfg.healthChecks && !offline;
+
   return (
     <div className="app">
-      {error && <div className="toast">API unreachable — {error}</div>}
+      {status === 'switching' ? (
+        <div className="toast toast-info" role="status">Switching to {target}…</div>
+      ) : offline ? (
+        <div className="toast" role="status">
+          No connection to the server{tiles.length > 0 && ' — showing the last known services'}
+          <button type="button" className="toast-btn" onClick={check} disabled={checking}>
+            {checking ? 'Retrying…' : 'Retry'}
+          </button>
+        </div>
+      ) : (
+        error && <div className="toast">API unreachable — {error}</div>
+      )}
 
-      {!loading && tiles.length === 0 && (
+      {!loading && !offline && tiles.length === 0 && (
         <p className="empty">No services found.</p>
       )}
 
@@ -113,7 +169,7 @@ export default function App() {
             onClickCapture: onTileClickCapture,
           };
           return tile.type === 'service' ? (
-            <ServiceTile key={tile.key} service={tile.service} showStatus={cfg.healthChecks} {...dragProps} />
+            <ServiceTile key={tile.key} service={tile.service} showStatus={showStatus} {...dragProps} />
           ) : (
             <TodoTile key={tile.key} count={tile.count} {...dragProps} onClick={() => setTodosOpen(true)} />
           );

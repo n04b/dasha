@@ -1,7 +1,7 @@
 // Composition root: construct every component, inject their dependencies, wire
 // them together, start listening and handle shutdown. This is the one place
 // that reads the real environment and owns the singletons.
-import { config } from './config.js';
+import { config, parseFallbackUrls } from './config.js';
 import { createLogger } from './logger.js';
 import { createStore } from './state.js';
 import { createIcons } from './icons.js';
@@ -19,7 +19,12 @@ async function main() {
     iconsDir: config.iconsDir,
     appHost: config.appHost,
     checkInterval: config.checkInterval,
+    fallbackUrls: config.fallbackUrls,
   });
+  const { rejected } = parseFallbackUrls(process.env.FALLBACK_HOST);
+  if (rejected.length) {
+    log.warn('FALLBACK_HOST entries ignored: expected http(s)://host[:port] URLs', rejected);
+  }
 
   // Build the object graph. Each component gets exactly the collaborators it
   // needs; nothing reaches across modules for a shared singleton.

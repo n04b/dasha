@@ -29,6 +29,7 @@ compose files I already maintain, with zero manual bookkeeping, so I (well, actu
 -  **Live reload** — file watcher rebuilds on create / change / delete.
 -  **Minimalist mosaic UI** — circular tiles in a honeycomb on a black background, fully responsive.
 -  **Drag to rearrange** — put tiles anywhere in the honeycomb, including free cells; remembered per browser.
+-  **Offline & Tailscale fallback** — opens from cache when the server is unreachable, and moves to its Tailscale (MagicDNS) address when that answers instead.
 -  **REST API** for integration.
 -  **Hardened**: non-root, healthcheck, graceful shutdown, `read_only` root filesystem, multi-arch (arm64 + amd64).
 
@@ -190,6 +191,59 @@ services:
       - "5432:5432"
 ```
 
+## Offline access & Tailscale fallback
+
+Dasha keeps working when the home server can't be reached at the address you
+opened it on — say, `https://dasha.home.lan` from outside your LAN:
+
+- **The app opens from cache.** A service worker caches the app itself (page,
+  bundle, icons) on the first visit. Later, if the server doesn't answer within
+  3 seconds, the cached copy loads instead. The API is never cached by it.
+- **It finds the server elsewhere.** On start, after any failed refresh and
+  whenever the tab comes back into view, the page pings `GET /api/ping`. If its
+  own address doesn't answer, it pings the addresses in `FALLBACK_HOST` — such as
+  the server's Tailscale MagicDNS name — one at a time, in order, and moves to the
+  first one where the dashboard answers, with the same path, query and hash.
+- **Or it waits.** If none answers, it shows the last services it saw with a
+  *No connection* banner and retries every `RECONNECT_INTERVAL` seconds (and when
+  the network or the tab comes back). Once the server answers, the tiles refresh
+  in place — no reload needed.
+
+`FALLBACK_HOST` is a list of full URLs — protocol, host and optional port,
+separated by commas or spaces. The address the page is on is skipped, so the
+list can name every address the server has; then it works both ways, back to
+the LAN address too when Tailscale is off at home:
+
+```yaml
+    environment:
+      FALLBACK_HOST: >-
+        https://dasha.home.lan,
+        https://homeserver.tail1234.ts.net,
+        http://100.101.102.103:1337
+```
+
+Things worth knowing:
+
+- **Offline caching needs HTTPS.** Browsers only run service workers on `https://`
+  pages (and `localhost`). Over plain HTTP the dashboard still switches to the
+  fallback while it is open — leave home with the tab open and it follows you
+  onto Tailscale — but it can't open at all while the server is down. A reverse
+  proxy with a certificate on the LAN side and
+  [`tailscale serve`](https://tailscale.com/kb/1312/serve) on the tailnet side
+  (`tailscale serve --bg 1337` → `https://homeserver.tail1234.ts.net`) cover both.
+- **An HTTPS page can't probe an HTTP address** — the browser blocks it as mixed
+  content — so an HTTPS dashboard skips `http://` entries; list HTTPS ones.
+- **Each address costs up to `CONNECT_TIMEOUT` when it doesn't answer**, so put
+  the likeliest first.
+- **Each address caches on its own.** The cache belongs to the address the
+  dashboard was opened on, so open each one online once.
+- **No redirect loops.** The page never switches to the address it is on, nor
+  back to the one it just came from until its own address has answered at least
+  once, and only switches after the target has answered as Dasha. The switch
+  replaces the history entry, so Back doesn't bounce you around.
+- The last services and config live in the browser's `localStorage`
+  (`dasha.services.v1`, `dasha.config.v1`), like the layout.
+
 ## Configuration
 
 | Variable         | Default     | Description                                       |
@@ -204,6 +258,9 @@ services:
 | `HIDE_SERVICES`  | `dasha`     | Comma-separated names hidden from the dashboard (matched case-insensitively against service key, container name and image base name). Default hides the dashboard's own service. Per-service, use `x-dasha-hide` instead. |
 | `SCAN_DEPTH`     | `1`         | Directory levels below `COMPOSE_DIR` to scan and watch. The default `1` fits `COMPOSE_DIR/<project>/compose.yaml` and keeps discovery off deep data dirs; raise it for projects nested further, `0` = only files directly in the root. |
 | `IGNORE_DIRS`    | `node_modules,.git,.svn,.hg,volumes` | Directory names never scanned or watched. Bind-mount data (e.g. `volumes/`) holds thousands of files that would exhaust the inotify watch limit (`ENOSPC`); hidden dirs (any starting with `.`) are always ignored on top of this. |
+| `FALLBACK_HOST`  | —           | Other addresses of this server, as full URLs (`https://homeserver.tail1234.ts.net`, `http://100.101.102.103:1337`) separated by commas or spaces. When the address the browser is on stops answering, it tries them in order and moves to the first where the dashboard answers. Entries without a protocol, or with a path, are ignored (logged at startup). See [Offline access](#offline-access--tailscale-fallback). |
+| `CONNECT_TIMEOUT` | `3000`     | How long the browser waits for the server (or each fallback) to answer a reachability ping, in ms. |
+| `RECONNECT_INTERVAL` | `15`    | While neither address answers, how often the browser retries, in seconds. |
 | `HEALTH_TIMEOUT` | `5000`      | Availability-check request timeout (ms).          |
 | `ICON_TIMEOUT`   | `3000`      | Iconify lookup timeout (ms).                      |
 | `ICON_CONCURRENCY` | `6`       | Parallel icon lookups per rebuild.                |
@@ -228,6 +285,7 @@ Offline/Timeout.)
 | `GET`  | `/api/compose/{id}`  | Raw content of a discovered compose file.|
 | `POST` | `/api/reload`        | Force a rescan / rebuild.                 |
 | `GET`  | `/api/config`        | Public runtime config.                    |
+| `GET`  | `/api/ping`          | Reachability probe (`{"app":"dasha"}`), open to any origin (CORS). |
 | `GET`  | `/healthz`           | Health endpoint (used by `HEALTHCHECK`). |
 
 ## Development
