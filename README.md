@@ -22,7 +22,7 @@ compose files I already maintain, with zero manual bookkeeping, so I (well, actu
 
 -  **Automatic scanning** — finds `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, `compose.yaml` (one level deep by default; raise `SCAN_DEPTH` for nested layouts).
 -  **Zero-config dashboard** — cards are built straight from the compose files.
--  **Local icon cache** — SVGs pulled from Iconify and stored in `/icons`.
+-  **Local icon cache** — SVGs pulled from Iconify (or your own image URLs) and stored in `/icons`.
 -  **iOS home-screen icon** — a dedicated Apple touch icon, alongside the SVG favicon.
 -  **Availability checks** *(opt-in)* — periodic HTTP probes → `Online` / `Offline` / `Timeout`. Off by default; enable with `HEALTH_CHECKS=on` so the dashboard only reaches out to other containers when you ask it to.
 -  **TODO/FIXME scanning** — collects `TODO` / `FIXME` comments from the compose files into a TODO widget tile.
@@ -104,10 +104,34 @@ literal `$`. An unset variable resolves to an empty string and is logged as a
 warning.
 
 **Icon** — priority (all cached locally under `/icons`):
-1. `x-dasha-icon` (a word to search, or an explicit Iconify id like `simple-icons:grafana`)
+1. `x-dasha-icon` — a word to search, an explicit Iconify id like `simple-icons:grafana`,
+   or an image URL (`https://…` or an inline `data:` URL)
 2. service name
 3. image name
 4. container name
+
+An icon URL is downloaded once by the server (SVG, PNG, JPEG, GIF, WebP or ICO,
+up to 1 MB) and served from the local cache like any other icon, so the
+dashboard never hot-links it and it keeps working offline. It is drawn in its
+own colours rather than as a white silhouette. The URL has to be reachable from
+the dashboard's container; if it can't be fetched or isn't an image, the next
+candidate is used. A cached copy is never re-fetched — to pick up a changed
+image at the same URL, clear `ICONS_DIR` (a `tmpfs` is cleared on restart).
+
+A `data:` URL embeds the image in the compose file itself, base64-encoded or
+percent-encoded; it is decoded and cached the same way. Quote it, so a `#` in
+inline SVG isn't read as a YAML comment.
+
+```yaml
+services:
+  wiki:
+    image: requarks/wiki:2
+    x-dasha-icon: "https://wiki.home.lan/_assets/favicons/android-chrome-192x192.png"
+
+  notes:
+    image: my/notes
+    x-dasha-icon: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='%23f80'/%3E%3C/svg%3E"
+```
 
 **Hidden from the dashboard** — a service with `x-dasha-hide` gets no card:
 

@@ -66,13 +66,16 @@ function firstPublishedPort(service) {
 /**
  * Ordered list of icon search candidates.
  * Priority: x-dasha-icon -> service name -> image -> container name.
- * An x-dasha-icon that already looks like an Iconify id (prefix:name)
- * is returned as an explicit id so it is fetched verbatim.
+ * An x-dasha-icon that is an http(s) or data: URL is used as is (`url`); one
+ * that looks like an Iconify id (prefix:name) is returned as an explicit id so
+ * it is fetched verbatim.
  */
 export function iconCandidates(service) {
   const candidates = [];
   if (service.ext.icon) {
-    candidates.push({ value: service.ext.icon, explicit: service.ext.icon.includes(':') });
+    const icon = String(service.ext.icon).trim();
+    if (/^(https?:\/\/|data:)/i.test(icon)) candidates.push({ value: icon, url: true });
+    else candidates.push({ value: icon, explicit: icon.includes(':') });
   }
   if (service.name) candidates.push({ value: service.name, explicit: false });
   if (service.image) candidates.push({ value: imageBaseName(service.image), explicit: false });

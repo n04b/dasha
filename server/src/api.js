@@ -111,10 +111,15 @@ export function createApp({ store, rebuild, config = defaultConfig, log = create
     res.type('image/svg+xml').set('Cache-Control', 'public, max-age=3600').send(FALLBACK_SVG);
   });
 
-  // Locally cached icons.
+  // Locally cached icons. An SVG fetched from an icon URL is arbitrary markup
+  // on our origin, so forbid it from running scripts if opened directly.
   app.use(
     '/icons',
-    express.static(config.iconsDir, { maxAge: '1h', fallthrough: true }),
+    express.static(config.iconsDir, {
+      maxAge: '1h',
+      fallthrough: true,
+      setHeaders: (res) => res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'"),
+    }),
   );
 
   // Built React frontend. Asset filenames are content-hashed so they can be

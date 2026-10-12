@@ -25,9 +25,10 @@ export function ServiceTile({ service, showStatus = true, style, dragging, onPoi
   const offline = showStatus && service.status === 'offline';
   const title = showStatus ? `${service.name} · ${meta.label}` : service.name;
   const href = linkFor(service);
-  // Full-colour icon sets keep their brand colours; monochrome sets are drawn
-  // as a white silhouette so they stay visible on the black tile.
-  const colorful = /\/(logos|devicon|skill-icons|flat-color-icons|fxemoji|twemoji|noto)-/.test(service.icon);
+  // Full-colour icon sets and icons given by URL (often raster logos) keep
+  // their colours; monochrome sets are drawn as a white silhouette so they stay
+  // visible on the black tile.
+  const colorful = /\/(url|logos|devicon|skill-icons|flat-color-icons|fxemoji|twemoji|noto)-/.test(service.icon);
   return (
     <a
       className={`tile${offline ? ' is-offline' : ''}${dragging ? ' is-dragging' : ''}`}

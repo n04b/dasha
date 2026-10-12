@@ -2,10 +2,12 @@
 //
 // For each service we get an ordered list of candidates (see resolver.js).
 // Explicit Iconify ids ("prefix:name") are fetched verbatim; plain words are
-// resolved through the Iconify search API, preferring brand/logo collections.
-// Every SVG is written to ICONS_DIR and served from /icons/<file>.
+// resolved through the Iconify search API, preferring brand/logo collections;
+// http(s) and data: URLs are downloaded/decoded as is (SVG or a raster image).
+// Every icon is written to ICONS_DIR and served from /icons/<file>.
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { config as defaultConfig } from './config.js';
 import { createLogger } from './logger.js';
 
@@ -13,6 +15,20 @@ import { createLogger } from './logger.js';
 const PREFERRED_PREFIXES = ['light', 'logos', 'simple-icons', 'skill-icons', 'devicon', 'mdi', 'cib'];
 
 const DEFAULT_ICON = 'default.svg';
+
+// Icons given as a URL: anything bigger is not an icon.
+const MAX_URL_ICON_BYTES = 1024 * 1024;
+
+// Formats accepted from an icon URL, recognised by their leading bytes rather
+// than the Content-Type, which servers often get wrong.
+const IMAGE_SIGNATURES = [
+  { ext: 'png', test: (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) },
+  { ext: 'jpg', test: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
+  { ext: 'gif', test: (b) => b.subarray(0, 4).toString('latin1') === 'GIF8' },
+  { ext: 'webp', test: (b) => b.subarray(0, 4).toString('latin1') === 'RIFF' && b.subarray(8, 12).toString('latin1') === 'WEBP' },
+  { ext: 'ico', test: (b) => b[0] === 0 && b[1] === 0 && b[2] === 1 && b[3] === 0 },
+  { ext: 'svg', test: (b) => b.subarray(0, 4096).toString('utf8').includes('<svg') },
+];
 
 // Circuit breaker: when Iconify is unreachable every lookup would otherwise burn
 // a full timeout, turning a rebuild into minutes of waiting. After a few
@@ -73,20 +89,24 @@ export function createIcons({ config = defaultConfig, log = createLogger('icons'
    */
   async function resolveIcon(candidates) {
     for (const candidate of candidates) {
-      const key = `${candidate.explicit ? 'id:' : 'q:'}${candidate.value.toLowerCase()}`;
+      // URL paths are case-sensitive, so a URL is memoized verbatim.
+      const key = candidate.url
+        ? `url:${candidate.value}`
+        : `${candidate.explicit ? 'id:' : 'q:'}${candidate.value.toLowerCase()}`;
       if (memo.has(key)) {
         const cached = memo.get(key);
         if (cached) return cached;
         continue; // known miss, try next candidate
       }
 
-      const url = candidate.explicit
-        ? await fetchAndCache(candidate.value)
-        : await searchAndCache(candidate.value);
+      let url;
+      if (candidate.url) url = await downloadUrl(candidate.value);
+      else if (candidate.explicit) url = await fetchAndCache(candidate.value);
+      else url = await searchAndCache(candidate.value);
 
       memo.set(key, url);
       if (url) {
-        log.info(`icon for "${candidate.value}" -> ${url}`);
+        log.info(`icon for "${candidate.url ? shortUrl(candidate.value) : candidate.value}" -> ${url}`);
         return url;
       }
     }
@@ -158,6 +178,65 @@ export function createIcons({ config = defaultConfig, log = createLogger('icons'
     }
   }
 
+  // Download an icon from an arbitrary URL and cache it as url-<hash>.<ext>.
+  // A data: URL goes through fetch too, which decodes it per the spec.
+  // The extension comes from the image's own bytes, so express.static serves
+  // it with the right type. Once cached it is never re-fetched, like Iconify
+  // icons: clearing ICONS_DIR picks up a changed image.
+  async function downloadUrl(iconUrl) {
+    const base = `url-${crypto.createHash('sha1').update(iconUrl).digest('hex').slice(0, 12)}`;
+    for (const { ext } of IMAGE_SIGNATURES) {
+      try {
+        await fs.access(path.join(config.iconsDir, `${base}.${ext}`));
+        return `/icons/${base}.${ext}`;
+      } catch {
+        /* not cached under this extension */
+      }
+    }
+
+    const body = await fetchImage(iconUrl);
+    if (!body) return null;
+    const format = IMAGE_SIGNATURES.find((s) => s.test(body));
+    if (!format) {
+      log.warn(`icon url is not an image: ${shortUrl(iconUrl)}`);
+      return null;
+    }
+    const file = `${base}.${format.ext}`;
+    try {
+      await fs.writeFile(path.join(config.iconsDir, file), body);
+      log.debug(`cached icon /icons/${file} from ${shortUrl(iconUrl)}`);
+      return `/icons/${file}`;
+    } catch (err) {
+      log.error(`cannot write icon ${file}`, err.message);
+      return null;
+    }
+  }
+
+  // Fetch an icon URL as bytes. Deliberately outside the Iconify circuit
+  // breaker: one dead self-hosted URL says nothing about Iconify.
+  async function fetchImage(iconUrl) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), config.iconTimeout);
+    try {
+      const res = await fetchImpl(iconUrl, { signal: controller.signal, headers: { 'user-agent': 'compose-dashboard' } });
+      if (!res.ok) {
+        log.warn(`icon url answered ${res.status}: ${shortUrl(iconUrl)}`);
+        return null;
+      }
+      const body = Buffer.from(await res.arrayBuffer());
+      if (body.length > MAX_URL_ICON_BYTES) {
+        log.warn(`icon url too large (${body.length} bytes): ${shortUrl(iconUrl)}`);
+        return null;
+      }
+      return body;
+    } catch (err) {
+      log.warn(`icon url fetch failed: ${shortUrl(iconUrl)}`, err.message);
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   function breakerOpen() {
     if (breakerUntil && Date.now() < breakerUntil) return true;
     if (breakerUntil) {
@@ -205,6 +284,11 @@ export function createIcons({ config = defaultConfig, log = createLogger('icons'
   }
 
   return { ensureIconsDir, isCacheWritable, defaultIconUrl, resolveIcon };
+}
+
+// A data: URL can be kilobytes of base64; keep log lines readable.
+function shortUrl(url) {
+  return url.length > 80 ? `${url.slice(0, 77)}...` : url;
 }
 
 function sanitize(s) {
