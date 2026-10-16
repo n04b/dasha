@@ -8,12 +8,19 @@
 const SERVICES_KEY = 'dasha.services.v1';
 const CONFIG_KEY = 'dasha.config.v1';
 
-export function registerServiceWorker() {
+// Bring the service worker in line with the server's OFFLINE_MODE: register it
+// when on; when off, drop any worker an earlier visit installed, and its caches,
+// so turning the flag off really turns offline mode off.
+export function syncServiceWorker(enabled) {
   // The dev server rebuilds on every save; a cache would only get in the way.
   if (!import.meta.env.PROD) return;
   // Service workers only exist in a secure context: https, or localhost.
   if (!('serviceWorker' in navigator)) {
-    console.info('Dasha: offline mode needs HTTPS (or localhost) — running without it.');
+    if (enabled) console.info('Dasha: offline mode needs HTTPS (or localhost) — running without it.');
+    return;
+  }
+  if (!enabled) {
+    unregisterServiceWorker();
     return;
   }
   const register = () =>
@@ -23,6 +30,18 @@ export function registerServiceWorker() {
   // Don't compete with the first load for bandwidth.
   if (document.readyState === 'complete') register();
   else window.addEventListener('load', register, { once: true });
+}
+
+async function unregisterServiceWorker() {
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    if (!registrations.length) return;
+    await Promise.all(registrations.map((r) => r.unregister()));
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((k) => k.startsWith('dasha-')).map((k) => caches.delete(k)));
+  } catch (err) {
+    console.warn('Dasha: removing the service worker failed', err);
+  }
 }
 
 // Tell the service worker which icons the tiles use, so they are there offline.

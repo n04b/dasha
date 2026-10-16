@@ -114,6 +114,12 @@ export function loadConfig(env = process.env) {
       env.IGNORE_DIRS?.split(',').map((s) => s.trim()).filter(Boolean) ||
       ['node_modules', '.git', '.svn', '.hg', 'volumes'],
 
+    // Offline mode: a service worker caches the app (page, bundle, icons) so
+    // the dashboard opens even while the server can't be reached. Off by
+    // default; turning it off again makes browsers drop the worker and its
+    // caches on their next visit. Needs HTTPS (or localhost) in the browser.
+    offlineMode: bool(env.OFFLINE_MODE, false),
+
     // Other addresses of this same server — typically its Tailscale MagicDNS
     // name — as full URLs (`https://homeserver.tail1234.ts.net`). When the
     // address the browser opened the dashboard on stops answering, it tries

@@ -27,6 +27,10 @@ services:
       # service key / container name / image name). Default: hides "dasha" so
       # the dashboard doesn't show a card for itself.
       # HIDE_SERVICES: "dasha"
+      # Offline mode: a service worker caches the app so the dashboard opens
+      # from the browser's cache while the server is unreachable. Off by default;
+      # needs HTTPS (or localhost) in the browser.
+      # OFFLINE_MODE: "true"
       # Other addresses of this server — e.g. its Tailscale MagicDNS name — as
       # full URLs. When the address the browser opened the dashboard on stops
       # answering, it tries these in order and moves to the first that answers.

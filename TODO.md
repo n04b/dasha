@@ -39,7 +39,8 @@
       when its own address is down, tries the `FALLBACK_HOST` URLs in order
       (e.g. the MagicDNS name) and moves to the first where Dasha answers, or
       shows the last known services and retries (`web/src/useConnection.js`,
-      `web/src/offline.js`).
+      `web/src/offline.js`). The service worker is opt-in via `OFFLINE_MODE`
+      (off by default); off, the page unregisters it and clears its caches.
 - [x] **Hide services without a URL** — don't render cards for services that have
       no resolvable URL (still returned by the API; just not shown).
 

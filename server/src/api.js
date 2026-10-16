@@ -28,6 +28,7 @@ export function createApp({ store, rebuild, config = defaultConfig, log = create
       healthChecks: config.healthChecks,
       checkInterval: config.checkInterval,
       lastBuild: store.lastBuild,
+      offlineMode: config.offlineMode,
       // Where the browser looks for this server, in order, when it can't reach
       // it on the address it is on.
       fallbackUrls: config.fallbackUrls,

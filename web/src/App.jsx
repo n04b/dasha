@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getJson } from './api.js';
 import { loadCells, loadOrder } from './layout.js';
-import { cacheConfig, cacheIcons, cacheServices, cachedConfig, cachedServices } from './offline.js';
+import { cacheConfig, cacheIcons, cacheServices, cachedConfig, cachedServices, syncServiceWorker } from './offline.js';
 import { useConnection } from './useConnection.js';
 import { DRAG_SCALE } from './honeycomb.js';
 import { useHoneycomb } from './useHoneycomb.js';
@@ -55,6 +55,9 @@ export default function App() {
       const json = await getJson('/api/config', { signal });
       setCfg(json);
       cacheConfig(json);
+      // Only the server's own answer decides: a cached config is no reason to
+      // install or drop the worker.
+      syncServiceWorker(json.offlineMode);
     } catch {
       /* keep the cached config */
     }

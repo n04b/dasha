@@ -59,6 +59,7 @@ services:
 | `COMPOSE_DIR`    | `/compose`  | Root scanned for compose files (recursive).                           |
 | `ICONS_DIR`      | `/icons`    | Local icon cache (mount as a volume or tmpfs).                        |
 | `HIDE_SERVICES`  | `dasha`     | Comma-separated names hidden from the dashboard (service key / container / image). |
+| `OFFLINE_MODE`   | `false`     | Cache the app in a service worker so it opens while the server is unreachable (`true`/`false`). Needs HTTPS. |
 | `FALLBACK_HOST`  | —           | Other addresses of this server as full URLs, comma-separated (e.g. `https://homeserver.tail1234.ts.net`). Tried in order when the one the browser is on stops answering. |
 | `CONNECT_TIMEOUT` | `3000`     | Browser-side reachability ping timeout (ms).                           |
 | `RECONNECT_INTERVAL` | `15`    | While offline, how often the browser retries (seconds).                |
@@ -96,9 +97,10 @@ services:
   answer an HTTP probe and will read as Offline.
 - **Hardened:** runs as a non-root user, ships a `HEALTHCHECK`, shuts down
   gracefully, and supports a read-only root filesystem (mount `/icons` writable).
-- **Offline & Tailscale fallback:** served over HTTPS, the dashboard opens from
-  the browser's cache when the server is unreachable, and moves to
-  the first address in `FALLBACK_HOST` (e.g. `https://homeserver.tail1234.ts.net`)
+- **Offline & Tailscale fallback:** with `OFFLINE_MODE=true` and served over HTTPS,
+  the dashboard opens from the browser's cache when the server is unreachable;
+  it also moves to the first address in `FALLBACK_HOST`
+  (e.g. `https://homeserver.tail1234.ts.net`)
   where the dashboard answers instead. Over plain HTTP only the switch works,
   while the tab is open.
 - **No database** — state is held in memory.

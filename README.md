@@ -30,7 +30,7 @@ compose files I already maintain, with zero manual bookkeeping, so I (well, actu
 -  **Live reload** — file watcher rebuilds on create / change / delete.
 -  **Minimalist mosaic UI** — circular tiles in a honeycomb on a black background, fully responsive.
 -  **Drag to rearrange** — put tiles anywhere in the honeycomb, including free cells; remembered per browser.
--  **Offline & Tailscale fallback** — opens from cache when the server is unreachable, and moves to its Tailscale (MagicDNS) address when that answers instead.
+-  **Offline & Tailscale fallback** — opens from cache when the server is unreachable (opt-in, `OFFLINE_MODE=true`), and moves to its Tailscale (MagicDNS) address when that answers instead.
 -  **REST API** for integration.
 -  **Hardened**: non-root, healthcheck, graceful shutdown, `read_only` root filesystem, multi-arch (arm64 + amd64).
 
@@ -221,8 +221,8 @@ services:
 Dasha keeps working when the home server can't be reached at the address you
 opened it on — say, `https://dasha.home.lan` from outside your LAN:
 
-- **The app opens from cache.** A service worker caches the app itself (page,
-  bundle, icons) on the first visit. Later, if the server doesn't answer within
+- **The app opens from cache** *(opt-in, `OFFLINE_MODE=true`)*. A service worker
+  caches the app itself (page, bundle, icons) on the first visit. Later, if the server doesn't answer within
   3 seconds, the cached copy loads instead. The API is never cached by it.
 - **It finds the server elsewhere.** On start, after any failed refresh and
   whenever the tab comes back into view, the page pings `GET /api/ping`. If its
@@ -249,6 +249,10 @@ the LAN address too when Tailscale is off at home:
 
 Things worth knowing:
 
+- **Offline caching is off by default.** Without `OFFLINE_MODE=true` no service
+  worker is installed; the fallback switch and the *No connection* banner still
+  work while the tab is open. Turning the flag off again makes each browser drop
+  the worker and its caches the next time it opens the dashboard.
 - **Offline caching needs HTTPS.** Browsers only run service workers on `https://`
   pages (and `localhost`). Over plain HTTP the dashboard still switches to the
   fallback while it is open — leave home with the tab open and it follows you
@@ -283,6 +287,7 @@ Things worth knowing:
 | `HIDE_SERVICES`  | `dasha`     | Comma-separated names hidden from the dashboard (matched case-insensitively against service key, container name and image base name). Default hides the dashboard's own service. Per-service, use `x-dasha-hide` instead. |
 | `SCAN_DEPTH`     | `1`         | Directory levels below `COMPOSE_DIR` to scan and watch. The default `1` fits `COMPOSE_DIR/<project>/compose.yaml` and keeps discovery off deep data dirs; raise it for projects nested further, `0` = only files directly in the root. |
 | `IGNORE_DIRS`    | `node_modules,.git,.svn,.hg,volumes` | Directory names never scanned or watched. Bind-mount data (e.g. `volumes/`) holds thousands of files that would exhaust the inotify watch limit (`ENOSPC`); hidden dirs (any starting with `.`) are always ignored on top of this. |
+| `OFFLINE_MODE`   | `false`     | Install a service worker that caches the app so it opens while the server is unreachable (`true`/`false`). Needs HTTPS (or `localhost`) in the browser. Switching it off removes the worker and its caches on the next visit. See [Offline access](#offline-access--tailscale-fallback). |
 | `FALLBACK_HOST`  | —           | Other addresses of this server, as full URLs (`https://homeserver.tail1234.ts.net`, `http://100.101.102.103:1337`) separated by commas or spaces. When the address the browser is on stops answering, it tries them in order and moves to the first where the dashboard answers. Entries without a protocol, or with a path, are ignored (logged at startup). See [Offline access](#offline-access--tailscale-fallback). |
 | `CONNECT_TIMEOUT` | `3000`     | How long the browser waits for the server (or each fallback) to answer a reachability ping, in ms. |
 | `RECONNECT_INTERVAL` | `15`    | While neither address answers, how often the browser retries, in seconds. |
