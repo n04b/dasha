@@ -23,6 +23,7 @@ compose files I already maintain, with zero manual bookkeeping, so I (well, actu
 -  **Automatic scanning** — finds `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, `compose.yaml` (one level deep by default; raise `SCAN_DEPTH` for nested layouts).
 -  **Zero-config dashboard** — cards are built straight from the compose files.
 -  **Local icon cache** — SVGs pulled from Iconify and stored in `/icons`.
+-  **iOS home-screen icon** — a dedicated Apple touch icon, alongside the SVG favicon.
 -  **Availability checks** *(opt-in)* — periodic HTTP probes → `Online` / `Offline` / `Timeout`. Off by default; enable with `HEALTH_CHECKS=on` so the dashboard only reaches out to other containers when you ask it to.
 -  **TODO/FIXME scanning** — collects `TODO` / `FIXME` comments from the compose files into a TODO widget tile.
 -  **Variable interpolation** — `${VAR}` and `.env` files are resolved like Compose does, so variable-driven ports still yield working links.
