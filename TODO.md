@@ -35,6 +35,14 @@
   - [ ] Free drag-to-reorder with a persisted layout.
 - [x] **Hide services without a URL** — don't render cards for services that have
       no resolvable URL (still returned by the API; just not shown).
+- [ ] **Multi-host dashboard** — one parent dashboard showing the services of
+      several Dasha instances.
+  - [ ] Host mode — an instance that only exports data about its apps to the
+        parent dashboard; it has no frontend of its own.
+  - [ ] Fetch the data from the hosts and add their services to the dashboard.
+        Open question: what host to use for a remote host's links. It can no
+        longer be relative (taken from the browser's address bar, as now), and
+        a fixed address breaks when the dashboard is opened over Tailscale.
 
 ## Bugs
 
