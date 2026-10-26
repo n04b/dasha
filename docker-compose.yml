@@ -27,6 +27,13 @@ services:
       # service key / container name / image name). Default: hides "dasha" so
       # the dashboard doesn't show a card for itself.
       # HIDE_SERVICES: "dasha"
+      # Other machines running Dasha with MODE=host, whose services join this
+      # dashboard: `name=` + every address of that host (LAN, Tailscale, …).
+      # A remote tile links to the address on the network you opened the
+      # dashboard over.
+      # HOSTS: "nas=http://192.168.1.20:1337,http://nas.tail1234.ts.net:1337"
+      # On those machines instead: no UI, only export the services.
+      # MODE: host
     # Makes host.docker.internal resolve to the Docker host on Linux too.
     extra_hosts:
       - "host.docker.internal:host-gateway"

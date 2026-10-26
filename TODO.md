@@ -35,14 +35,17 @@
   - [ ] Free drag-to-reorder with a persisted layout.
 - [x] **Hide services without a URL** — don't render cards for services that have
       no resolvable URL (still returned by the API; just not shown).
-- [ ] **Multi-host dashboard** — one parent dashboard showing the services of
+- [x] **Multi-host dashboard** — one parent dashboard showing the services of
       several Dasha instances.
-  - [ ] Host mode — an instance that only exports data about its apps to the
-        parent dashboard; it has no frontend of its own.
-  - [ ] Fetch the data from the hosts and add their services to the dashboard.
-        Open question: what host to use for a remote host's links. It can no
-        longer be relative (taken from the browser's address bar, as now), and
-        a fixed address breaks when the dashboard is opened over Tailscale.
+  - [x] Host mode — an instance that only exports data about its apps to the
+        parent dashboard; it has no frontend of its own. `MODE=host`: no UI, no
+        icon lookups, services + TODOs exported at `/api/host` (only its own,
+        so instances can't loop).
+  - [x] Fetch the data from the hosts and add their services to the dashboard.
+        `HOSTS` lists every address of each host (`server/src/remotes.js`).
+        Links: a remote tile takes the host's address on the same network the
+        dashboard was opened over — LAN, Tailscale (`*.ts.net`, `100.64/10`) or
+        public — falling back to the first one (`web/src/hosts.js`).
 
 ## Bugs
 

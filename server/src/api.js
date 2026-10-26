@@ -28,6 +28,17 @@ export function createApp({ store, rebuild, config = defaultConfig, log = create
       healthChecks: config.healthChecks,
       checkInterval: config.checkInterval,
       lastBuild: store.lastBuild,
+      mode: config.mode,
+      // The other instances in HOSTS and whether the last fetch from each worked.
+      hosts: config.hosts.map(({ name }) => {
+        const remote = store.getRemote(name);
+        return {
+          name,
+          ok: remote?.ok ?? null,
+          error: remote?.error ?? null,
+          lastFetch: remote?.lastFetch ?? null,
+        };
+      }),
     });
   });
 
@@ -37,13 +48,39 @@ export function createApp({ store, rebuild, config = defaultConfig, log = create
   app.get('/api/services', (_req, res) => {
     res.json({
       lastBuild: store.lastBuild,
-      services: store.listServices().map((s) => ({
+      services: store.listServices().map(({ iconCandidates: _, ...s }) => ({
         ...s,
         environment: redactMap(s.environment),
         labels: redactMap(s.labels),
       })),
-      todos: store.todos,
+      todos: store.listTodos(),
       files: store.listFiles().map(({ id, path: p, error }) => ({ id, path: p, error })),
+    });
+  });
+
+  // What a parent dashboard fetches from this instance: its own services only
+  // (never ones it pulled from HOSTS, so instances can't loop or duplicate),
+  // with the icon candidates instead of a resolved icon — the parent caches
+  // icons on its side — and no environment, labels or compose text at all.
+  app.get('/api/host', (_req, res) => {
+    res.set('Cache-Control', 'no-store').json({
+      app: 'dasha',
+      healthChecks: config.healthChecks,
+      lastBuild: store.lastBuild,
+      services: store.listLocalServices().map((s) => ({
+        id: s.id,
+        name: s.name,
+        service: s.service,
+        image: s.image,
+        containerName: s.containerName,
+        port: s.port,
+        iconCandidates: s.iconCandidates,
+        status: s.status,
+        statusCode: s.statusCode,
+        responseTime: s.responseTime,
+        lastCheck: s.lastCheck,
+      })),
+      todos: store.todos.map(({ keyword, text, line, file, fileId }) => ({ keyword, text, line, file, fileId })),
     });
   });
 
@@ -96,6 +133,14 @@ export function createApp({ store, rebuild, config = defaultConfig, log = create
       setHeaders: (res) => res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'"),
     }),
   );
+
+  // A host has no frontend of its own: it only answers the API.
+  if (config.mode === 'host') {
+    app.get(/^\/(?!api\/|icons\/|healthz).*/, (_req, res) => {
+      res.status(404).type('text/plain').send('Dasha is running in host mode: its services are exported at /api/host');
+    });
+    return app;
+  }
 
   // Built React frontend. Asset filenames are content-hashed so they can be
   // cached for a long time; index.html must not be cached, or an upgraded

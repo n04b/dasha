@@ -13,6 +13,56 @@ function bool(value, fallback) {
 }
 
 /**
+ * Parse the HOSTS list of other Dasha instances whose services are added to
+ * this dashboard: entries separated by `;` or newlines, each
+ * `name=url[,url...]`, e.g. `nas=http://192.168.1.20:1337,http://nas.tail1234.ts.net:1337`.
+ * Every URL is an address of the same host — the server fetches from the first
+ * one that answers, and the browser links to whichever of their hostnames is
+ * on the network it opened the dashboard on. Only http(s) URLs without
+ * credentials, query or hash are accepted; anything else is returned as
+ * `rejected`, as is an entry without a valid or with a duplicate name.
+ */
+export function parseHosts(value) {
+  const hosts = [];
+  const rejected = [];
+  for (const entry of String(value ?? '').split(/[;\n]+/).map((s) => s.trim()).filter(Boolean)) {
+    const eq = entry.indexOf('=');
+    const name = eq > 0 ? entry.slice(0, eq).trim() : '';
+    if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(name) || hosts.some((h) => h.name === name)) {
+      rejected.push(entry);
+      continue;
+    }
+    const urls = [];
+    const rejectedBefore = rejected.length;
+    for (const raw of entry.slice(eq + 1).split(/[\s,]+/).filter(Boolean)) {
+      let url = null;
+      try {
+        url = new URL(raw);
+      } catch {
+        /* not a URL at all */
+      }
+      const ok = url && /^https?:$/.test(url.protocol) && !url.username && !url.password && !url.search && !url.hash;
+      if (!ok) {
+        rejected.push(`${name}=${raw}`);
+        continue;
+      }
+      // Keep an optional path prefix (a host behind a reverse proxy), minus the
+      // trailing slash, so `${base}/api/host` is always well-formed.
+      const base = `${url.origin}${url.pathname.replace(/\/+$/, '')}`;
+      if (!urls.includes(base)) urls.push(base);
+    }
+    if (!urls.length) {
+      // Its bad URLs are reported already; an entry with none at all is not.
+      if (rejected.length === rejectedBefore) rejected.push(entry);
+      continue;
+    }
+    const hostnames = [...new Set(urls.map((u) => new URL(u).hostname))];
+    hosts.push({ name, urls, hostnames });
+  }
+  return { hosts, rejected };
+}
+
+/**
  * Build the runtime configuration from an environment map. Kept as a factory
  * (rather than reading `process.env` inline) so tests can construct isolated
  * configs and the composition root stays the single place that reads the real
@@ -83,6 +133,21 @@ export function loadConfig(env = process.env) {
     ignoreDirs:
       env.IGNORE_DIRS?.split(',').map((s) => s.trim()).filter(Boolean) ||
       ['node_modules', '.git', '.svn', '.hg', 'volumes'],
+
+    // `dashboard` (default) serves the UI; `host` runs headless and only
+    // exports this machine's services (`/api/host`) to a parent dashboard that
+    // lists it in HOSTS — no frontend, no icon lookups, no HOSTS of its own.
+    mode: String(env.MODE || '').trim().toLowerCase() === 'host' ? 'host' : 'dashboard',
+
+    // Other Dasha instances (usually in host mode) whose services are added to
+    // this dashboard. See parseHosts for the format. Empty = none.
+    hosts: parseHosts(env.HOSTS).hosts,
+
+    // How often the services of HOSTS are fetched, in seconds.
+    hostInterval: int(env.HOST_INTERVAL, 30),
+
+    // Per-request timeout when fetching from a host, in milliseconds.
+    hostTimeout: int(env.HOST_TIMEOUT, 5000),
 
     // Log verbosity: debug | info | warn | error
     logLevel: env.LOG_LEVEL || 'info',

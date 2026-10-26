@@ -34,7 +34,7 @@ export function createHealthChecker({ store, config = defaultConfig, log = creat
     }
     passRunning = true;
     try {
-      const services = store.listServices().filter((s) => s.checkUrl);
+      const services = store.listLocalServices().filter((s) => s.checkUrl);
       await Promise.all(services.map(checkService));
     } finally {
       passRunning = false;

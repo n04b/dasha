@@ -86,7 +86,9 @@ export function createBuilder({ store, icons, config = defaultConfig, log = crea
           port,
           url,
           checkUrl,
-          // Filled in below, in parallel — icon lookups hit the network.
+          // Filled in below, in parallel — icon lookups hit the network. The
+          // candidates stay on the service: /api/host exports them so a parent
+          // dashboard can resolve the icon on its side.
           icon: null,
           iconCandidates: iconCandidates(svc),
           labels: svc.labels,
@@ -102,7 +104,9 @@ export function createBuilder({ store, icons, config = defaultConfig, log = crea
       }
     }
 
-    await resolveIcons(services);
+    // A host has no frontend to draw icons, so it leaves the lookups to the
+    // parent dashboard, which resolves the exported candidates itself.
+    if (config.mode !== 'host') await resolveIcons(services);
 
     store.replaceAll(files, services, todos);
     log.info(
@@ -120,7 +124,6 @@ export function createBuilder({ store, icons, config = defaultConfig, log = crea
         const svc = services[next];
         next += 1;
         svc.icon = await icons.resolveIcon(svc.iconCandidates);
-        delete svc.iconCandidates; // internal detail, not part of the API payload
       }
     };
     await Promise.all(Array.from({ length: Math.min(limit, services.length) }, worker));

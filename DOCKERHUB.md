@@ -60,6 +60,10 @@ services:
 | `ICONS_DIR`      | `/icons`    | Local icon cache (mount as a volume or tmpfs).                        |
 | `HIDE_SERVICES`  | `dasha`     | Comma-separated names hidden from the dashboard (service key / container / image). |
 | `HEALTH_TIMEOUT` | `5000`      | Availability-check request timeout (ms).                             |
+| `MODE`           | `dashboard` | `host` = headless: no UI, exports this machine's services to a parent dashboard. |
+| `HOSTS`          | —           | Other instances whose services join this dashboard: `nas=http://192.168.1.20:1337,http://nas.tail1234.ts.net:1337; pi=…` — every URL an address of that host. |
+| `HOST_INTERVAL`  | `30`        | How often `HOSTS` are fetched, in seconds.                             |
+| `HOST_TIMEOUT`   | `5000`      | Timeout of a fetch from a host (ms).                                   |
 | `LOG_LEVEL`      | `info`      | `debug` \| `info` \| `warn` \| `error`.                              |
 
 ## Volumes
@@ -93,6 +97,10 @@ services:
   answer an HTTP probe and will read as Offline.
 - **Hardened:** runs as a non-root user, ships a `HEALTHCHECK`, shuts down
   gracefully, and supports a read-only root filesystem (mount `/icons` writable).
+- **Several machines:** run the image with `MODE=host` on the other machines and
+  list them in `HOSTS` on the dashboard. A remote tile links to that machine's
+  address on the network the dashboard was opened over — its LAN address at
+  home, its Tailscale name (`*.ts.net` / `100.x`) over Tailscale.
 - **No database** — state is held in memory.
 
 ## Source & issues

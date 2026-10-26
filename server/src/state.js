@@ -11,6 +11,13 @@ class Store extends EventEmitter {
     /** @type {object[]} flat list of TODO/FIXME entries across all compose files */
     this.todos = [];
     this.lastBuild = null;
+    /**
+     * Services and TODOs fetched from the other Dasha instances in HOSTS, kept
+     * apart from the local ones so a local rebuild never drops them (and a
+     * fetch never drops local services).
+     * @type {Map<string, object>} host name -> { services, todos, ok, error, lastFetch }
+     */
+    this.remotes = new Map();
   }
 
   replaceAll(files, services, todos = []) {
@@ -37,8 +44,27 @@ class Store extends EventEmitter {
     this.emit('change');
   }
 
+  // Local and remote services together: what the dashboard shows.
   listServices() {
+    return [...this.services.values(), ...[...this.remotes.values()].flatMap((r) => r.services)];
+  }
+
+  // Only the services discovered from this machine's own compose files.
+  listLocalServices() {
     return [...this.services.values()];
+  }
+
+  listTodos() {
+    return [...this.todos, ...[...this.remotes.values()].flatMap((r) => r.todos)];
+  }
+
+  setRemote(name, entry) {
+    this.remotes.set(name, entry);
+    this.emit('change');
+  }
+
+  getRemote(name) {
+    return this.remotes.get(name) || null;
   }
 
   listFiles() {

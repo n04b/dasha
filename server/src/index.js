@@ -1,13 +1,14 @@
 // Composition root: construct every component, inject their dependencies, wire
 // them together, start listening and handle shutdown. This is the one place
 // that reads the real environment and owns the singletons.
-import { config } from './config.js';
+import { config, parseHosts } from './config.js';
 import { createLogger } from './logger.js';
 import { createStore } from './state.js';
 import { createIcons } from './icons.js';
 import { createBuilder } from './builder.js';
 import { createHealthChecker } from './health.js';
 import { createWatcher } from './watcher.js';
+import { createRemotes } from './remotes.js';
 import { createApp } from './api.js';
 
 const log = createLogger('main');
@@ -19,7 +20,14 @@ async function main() {
     iconsDir: config.iconsDir,
     appHost: config.appHost,
     checkInterval: config.checkInterval,
+    mode: config.mode,
+    hosts: config.hosts.map((h) => h.name),
   });
+  const { rejected } = parseHosts(process.env.HOSTS);
+  if (rejected.length) log.warn('HOSTS entries ignored: expected name=http(s)://host[:port][,…]', rejected);
+  if (config.mode === 'host' && config.hosts.length) {
+    log.warn('HOSTS is ignored in host mode: only a dashboard collects services from other hosts');
+  }
 
   // Build the object graph. Each component gets exactly the collaborators it
   // needs; nothing reaches across modules for a shared singleton.
@@ -28,14 +36,17 @@ async function main() {
   const builder = createBuilder({ store, icons, config, log: createLogger('builder') });
   const health = createHealthChecker({ store, config, log: createLogger('health') });
   const watcher = createWatcher({ rebuild: builder.rebuild, config, log: createLogger('watcher') });
+  const remotes = createRemotes({ store, icons, config, log: createLogger('remotes') });
 
-  await icons.ensureIconsDir();
+  // A host never looks icons up, so it needs no writable icon cache.
+  if (config.mode !== 'host') await icons.ensureIconsDir();
   await builder.rebuild(); // initial scan before we start serving
   // Availability probing is opt-in: without it the dashboard never touches the
   // other containers, it just links to them.
   if (config.healthChecks) health.start();
   else log.info('availability checks disabled (set HEALTH_CHECKS=on to enable)');
   watcher.start();
+  if (config.mode !== 'host') remotes.start();
 
   const app = createApp({ store, rebuild: builder.rebuild, config, log: createLogger('api') });
   const server = app.listen(config.port, () => {
@@ -56,6 +67,7 @@ async function main() {
     log.info(`received ${signal}, shutting down gracefully`);
 
     health.stop();
+    remotes.stop();
     await watcher.stop().catch(() => {});
 
     const forced = setTimeout(() => {

@@ -113,7 +113,13 @@ export default function App() {
             onClickCapture: onTileClickCapture,
           };
           return tile.type === 'service' ? (
-            <ServiceTile key={tile.key} service={tile.service} showStatus={cfg.healthChecks} {...dragProps} />
+            <ServiceTile
+              key={tile.key}
+              service={tile.service}
+              // A remote service's status comes from its own host's checks.
+              showStatus={tile.service.host ? tile.service.healthChecks : cfg.healthChecks}
+              {...dragProps}
+            />
           ) : (
             <TodoTile key={tile.key} count={tile.count} {...dragProps} onClick={() => setTodosOpen(true)} />
           );

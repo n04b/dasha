@@ -1,5 +1,6 @@
 // The two kinds of mosaic tile — a service card and the TODO widget — plus the
 // status vocabulary and the browser-relative link helper they share.
+import { pickHostname } from './hosts.js';
 
 export const STATUS_META = {
   online: { label: 'Online', cls: 'online' },
@@ -12,8 +13,11 @@ export const STATUS_META = {
 // The server can't know which host is reachable from wherever the dashboard is
 // being viewed, so it publishes the service's `port` and leaves the host to the
 // client: whatever is in the address bar. Open the dashboard at server.local and
-// the tiles point at server.local; reach it by IP and they follow.
+// the tiles point at server.local; reach it by IP and they follow. A service on
+// another machine (from HOSTS) links to that machine's address on the same
+// network instead — see hosts.js.
 export function linkFor(service) {
+  if (service.port && service.hostnames?.length) return `http://${pickHostname(service.hostnames)}:${service.port}`;
   if (service.port) return `http://${window.location.hostname}:${service.port}`;
   return service.url || '#'; // no published port: fall back to whatever the API gave
 }
@@ -23,7 +27,8 @@ export function ServiceTile({ service, showStatus = true, style, dragging, onPoi
   // With availability checks off, a service has no status to speak of — don't
   // mark it offline or show a perpetual "Checking…" in the tooltip.
   const offline = showStatus && service.status === 'offline';
-  const title = showStatus ? `${service.name} · ${meta.label}` : service.name;
+  const name = service.host ? `${service.name} · ${service.host}` : service.name;
+  const title = showStatus ? `${name} · ${meta.label}` : name;
   const href = linkFor(service);
   // Full-colour icon sets and icons given by URL (often raster logos) keep
   // their colours; monochrome sets are drawn as a white silhouette so they stay

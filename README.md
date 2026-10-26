@@ -28,6 +28,7 @@ compose files I already maintain, with zero manual bookkeeping, so I (well, actu
 -  **TODO/FIXME scanning** — collects `TODO` / `FIXME` comments from the compose files into a TODO widget tile.
 -  **Variable interpolation** — `${VAR}` and `.env` files are resolved like Compose does, so variable-driven ports still yield working links.
 -  **Live reload** — file watcher rebuilds on create / change / delete.
+-  **Several machines, one dashboard** — run Dasha in host mode on the other machines and list them in `HOSTS`; their services join the mosaic, linked over LAN or Tailscale, whichever you're on.
 -  **Minimalist mosaic UI** — circular tiles in a honeycomb on a black background, fully responsive.
 -  **Drag to rearrange** — put tiles anywhere in the honeycomb, including free cells; remembered per browser.
 -  **REST API** for integration.
@@ -195,6 +196,65 @@ means day to day:
 - To go back to the automatic layout, clear the site data for the dashboard (or
   run `localStorage.removeItem('dasha.tile-layout.v2')` in the browser console).
 
+## Several machines
+
+One dashboard can show the services of several machines. On every other
+machine run Dasha in **host mode** — same image, `MODE=host`, pointed at that
+machine's compose files. It has no frontend of its own: it only exports its
+services at `/api/host`. On the machine with the dashboard, list the hosts in
+`HOSTS`:
+
+```yaml
+# on the NAS: headless, only exports its services
+services:
+  dasha:
+    image: n04b/dasha:latest
+    ports:
+      - "1337:1337"
+    environment:
+      MODE: host
+      HEALTH_CHECKS: "on"              # statuses come from the host's own checks
+      CHECK_HOST: host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /path/to/projects:/compose:ro
+    read_only: true
+```
+
+```yaml
+# on the main server: the dashboard
+    environment:
+      HOSTS: "nas=http://192.168.1.20:1337,http://nas.tail1234.ts.net:1337; pi=http://192.168.1.30:1337"
+```
+
+`HOSTS` holds entries separated by `;` (or newlines), each `name=` followed by
+**every address of that host**, comma-separated — its LAN address, its
+Tailscale name, and so on. The dashboard fetches from the first address that
+answers, every `HOST_INTERVAL` seconds, and adds the host's services next to its
+own, with the host's name in the tooltip. Icons are looked up and cached by the
+dashboard, availability by the host (enable `HEALTH_CHECKS` there). The host's
+TODOs land in the TODO tile, prefixed with its name. Any instance answers
+`/api/host`, so a full dashboard can be listed in `HOSTS` too; it only ever
+exports its own services, never ones it collected.
+
+**Which address a tile links to.** A local tile keeps taking its host from the
+address bar, but a remote one can't — that's the dashboard's address, not the
+other machine's. So the link uses the address of the remote host that is **on
+the same network the dashboard was opened over**:
+
+| Dashboard opened at                                  | Remote tiles link to             |
+| ---------------------------------------------------- | -------------------------------- |
+| a LAN address (`192.168.x.x`, `10.x`, `*.local`, `*.lan`, a bare name, `localhost`) | the host's LAN address |
+| a Tailscale address (`*.ts.net`, `100.64.0.0/10`)    | the host's Tailscale address     |
+| anything else (a public domain)                      | the host's first public address  |
+
+When the host has no address on that network, its first one is used. So list a
+Tailscale address with the full MagicDNS name (`nas.tail1234.ts.net`) or its
+`100.x` IP — a bare `nas` reads as a LAN name. If the dashboard can't reach a
+host, the host's services stay on the mosaic with an unknown status until it
+answers again; `/api/config` lists every host and the last error.
+
 ## TODO / FIXME scanning
 
 Dasha scans the compose files themselves for `TODO` and `FIXME` comments and
@@ -232,6 +292,10 @@ services:
 | `HEALTH_TIMEOUT` | `5000`      | Availability-check request timeout (ms).          |
 | `ICON_TIMEOUT`   | `3000`      | Iconify lookup timeout (ms).                      |
 | `ICON_CONCURRENCY` | `6`       | Parallel icon lookups per rebuild.                |
+| `MODE`           | `dashboard` | `host` runs headless: no frontend, no icon lookups, services exported at `/api/host` for a parent dashboard. See [Several machines](#several-machines). |
+| `HOSTS`          | —           | Other Dasha instances whose services join this dashboard: `name=url[,url…]` entries separated by `;`, every URL an address of that host (LAN, Tailscale, …). |
+| `HOST_INTERVAL`  | `30`        | How often the services of `HOSTS` are fetched, in seconds. |
+| `HOST_TIMEOUT`   | `5000`      | Timeout of a fetch from a host (ms).              |
 | `LOG_LEVEL`      | `info`      | `debug` \| `info` \| `warn` \| `error`.           |
 
 ## Troubleshooting
@@ -249,7 +313,8 @@ Offline/Timeout.)
 
 | Method | Endpoint             | Description                              |
 | ------ | -------------------- | ---------------------------------------- |
-| `GET`  | `/api/services`      | All discovered services + their status.  |
+| `GET`  | `/api/services`      | All discovered services + their status, including those from `HOSTS`. |
+| `GET`  | `/api/host`          | This instance's own services, for a parent dashboard (see `HOSTS`). |
 | `GET`  | `/api/compose/{id}`  | Raw content of a discovered compose file.|
 | `POST` | `/api/reload`        | Force a rescan / rebuild.                 |
 | `GET`  | `/api/config`        | Public runtime config.                    |
